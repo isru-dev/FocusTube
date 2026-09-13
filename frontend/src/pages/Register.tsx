@@ -1,13 +1,24 @@
 import { useState } from "react";
-
+import { supabase } from '../lib/supabaseClient'
 export function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const[errmessage,seterrmessage]=useState('');
+ async function handleRegister(e: React.FormEvent) {
+  e.preventDefault();
 
-  function handleRegister(e: React.FormEvent) {
-    e.preventDefault();
-    // Add your registration logic here
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    seterrmessage(error.message);
+    return;
   }
+
+  console.log("Registered:", data.user);
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 sm:px-6 lg:px-8">
@@ -66,6 +77,13 @@ export function Register() {
           >
             Register
           </button>
+          <p>
+            Already have an account? <a href="/login" className="text-red-400 hover:text-red-800 transition-colors duration-200">Login</a>
+          </p>
+           
+            {errmessage && (
+            <p className="text-sm text-red-600">{errmessage}</p>
+          )}
         </form>
 
       </div>
