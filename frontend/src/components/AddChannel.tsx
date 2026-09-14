@@ -1,14 +1,30 @@
 import { useState } from "react";
 import { SideBar } from "./sidebar";
-
+import {authFetch} from '../lib/api.ts';
 export function AddChannel() {
   const [url, setUrl] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  function handleUrl(e: React.FormEvent) {
+  async function handleUrl(e: React.FormEvent) {
     e.preventDefault();
-    // Add your logic to handle adding by URL here
-    console.log("Adding channel by URL:", url);
+
+    try {
+      const response = await authFetch("http://localhost:5000/youtube/url", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to add channel by URL");
+      }
+
+      const data = await response.json();
+      console.log("Success:", data);
+      console.log("Adding channel by URL:", url);
+    } catch (error) {
+      console.error("Error adding channel:", error);
+    }
   }
 
   function handleSearch(e: React.FormEvent) {
@@ -34,7 +50,10 @@ export function AddChannel() {
               placeholder="Channel name..."
               className="border px-3 py-1 rounded flex-1"
             />
-            <button type="submit" className="bg-blue-500 text-white px-4 py-1 rounded">
+            <button
+              type="submit"
+              className="bg-blue-500 text-white px-4 py-1 rounded"
+            >
               Search
             </button>
           </form>
@@ -44,7 +63,9 @@ export function AddChannel() {
           <h1 className="text-lg font-semibold mb-2">ADD by url</h1>
           <form className="flex flex-col gap-2" onSubmit={handleUrl}>
             <div>
-              <label className="block text-sm font-medium mb-1">enter url</label>
+              <label className="block text-sm font-medium mb-1">
+                enter url
+              </label>
               <input
                 type="text"
                 value={url}
@@ -53,7 +74,10 @@ export function AddChannel() {
                 className="border px-3 py-1 rounded w-full"
               />
             </div>
-            <button type="submit" className="bg-green-500 text-white px-4 py-1 rounded self-start mt-2">
+            <button
+              type="submit"
+              className="bg-green-500 text-white px-4 py-1 rounded self-start mt-2"
+            >
               Add URL
             </button>
           </form>
