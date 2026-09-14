@@ -16,8 +16,9 @@ export function AddChannel() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to add channel by URL");
-      }
+  const error = await response.json();
+  throw new Error(error.error ?? "Failed to add channel");
+}
 
       const data = await response.json();
       console.log("Success:", data);
