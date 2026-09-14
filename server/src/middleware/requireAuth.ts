@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { supabase } from '../lib/supabaseClient.ts';
 
+
 export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 

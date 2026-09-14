@@ -25,25 +25,23 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
   const handle = extractHandle(url);
 
-  const ytResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet&forHandle=${handle}&key=${process.env.YOUTUBE_API_KEY}`
+  // 1. Resolve handle -> channel info (includes uploads playlist ID)
+  const channelResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&forHandle=${handle}&key=${process.env.YOUTUBE_API_KEY}`
   );
-  if (!ytResponse.ok) {
-  const error = await ytResponse.text();
-  console.error("YouTube API error:", error);
-  return res.status(502).json({ error: "YouTube API request failed" });
-}
-  const ytData = await ytResponse.json();
+  const channelData = await channelResponse.json();
 
-  if (!ytData.items || ytData.items.length === 0) {
+  if (!channelData.items || channelData.items.length === 0) {
     return res.status(404).json({ error: 'Channel not found' });
   }
 
-  const channel = ytData.items[0];
+  const channel = channelData.items[0];
   const channelId = channel.id;
   const channelName = channel.snippet.title;
   const thumbnailUrl = channel.snippet.thumbnails.default.url;
+  const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
 
+  // 2. Save the channel (shared table, upsert as before)
   const { error: channelError } = await supabaseAdmin
     .from('channels')
     .upsert({ id: channelId, name: channelName, thumbnail_url: thumbnailUrl });
@@ -52,18 +50,68 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     return res.status(500).json({ error: channelError.message });
   }
 
+  // 3. Link this user to the channel
   const { error: linkError } = await supabaseAdmin
     .from('user_channels')
     .insert({ user_id: req.userId, channel_id: channelId });
 
-  if (linkError) {
-    if (linkError.code === '23505') {
-      return res.status(409).json({ error: 'You already added this channel' });
-    }
+  if (linkError && linkError.code !== '23505') {
+    // ignore "already added" conflicts here; only fail on real errors
     return res.status(500).json({ error: linkError.message });
   }
 
-  res.status(201).json({ id: channelId, name: channelName, thumbnail_url: thumbnailUrl });
+  // 4. Fetch videos from the uploads playlist
+  const videosResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=10&key=${process.env.YOUTUBE_API_KEY}`
+  );
+  const videosData = await videosResponse.json();
+
+  const videos = (videosData.items ?? []).map((item: any) => ({
+    id: item.snippet.resourceId.videoId,
+    channel_id: channelId,
+    title: item.snippet.title,
+    thumbnail_url: item.snippet.thumbnails.default.url,
+    published_at: item.snippet.publishedAt,
+  }));
+
+  if (videos.length > 0) {
+    const { error: videosError } = await supabaseAdmin
+      .from('videos')
+      .upsert(videos);
+
+    if (videosError) {
+      return res.status(500).json({ error: videosError.message });
+    }
+  }
+
+  res.status(201).json({ id: channelId, name: channelName, thumbnail_url: thumbnailUrl, videoCount: videos.length });
 });
 
-export const channelurl = router;
+
+router.get('/my-channels', requireAuth, async (req: Request, res: Response) => {
+  const { data: links, error: linksError } = await supabaseAdmin
+    .from('user_channels')
+    .select('channel_id, channels(id, name, thumbnail_url)')
+    .eq('user_id', req.userId);
+
+  if (linksError) return res.status(500).json({ error: linksError.message });
+
+  const channelIds = links.map((l: any) => l.channel_id);
+
+  const { data: videos, error: videosError } = await supabaseAdmin
+    .from('videos')
+    .select('*')
+    .in('channel_id', channelIds)
+    .order('published_at', { ascending: false });
+
+  if (videosError) return res.status(500).json({ error: videosError.message });
+
+  const channels = links.map((l: any) => ({
+    ...l.channels,
+    videos: videos.filter((v: any) => v.channel_id === l.channel_id),
+  }));
+
+  res.json(channels);
+});
+
+export default router;

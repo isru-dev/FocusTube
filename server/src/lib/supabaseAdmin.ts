@@ -6,4 +6,6 @@ dotenv.config();
 const supabaseUrl = process.env.SUPABASE_URL as string;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
+console.log('Service key loaded:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10));
+
 export const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
