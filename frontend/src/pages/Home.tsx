@@ -2,7 +2,7 @@ import { Header } from "../components/header";
 import { Link } from "react-router-dom";
 export function Home() {
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
+<div className="flex min-h-screen bg-stone-100">
       <Header />
 
       <main>

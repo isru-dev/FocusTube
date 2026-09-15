@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { authFetch } from "../lib/api";
 import { SideBar } from "./sidebar";
+import { MobileNav } from "./MobileNav";
 
 interface Video {
   id: string;
@@ -70,7 +71,7 @@ export function Feed() {
   }
 
   return (
-    <div className="flex min-h-screen bg-stone-100">
+<div className="flex min-h-screen bg-stone-100">
       <SideBar />
 
       <main className="min-w-0 flex-1">
@@ -177,6 +178,8 @@ export function Feed() {
 
         </div>
       </main>
+
+      <MobileNav />
     </div>
   );
 }
