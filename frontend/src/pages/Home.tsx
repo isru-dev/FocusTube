@@ -1,16 +1,17 @@
 import { Header } from "../components/header";
 import { Link } from "react-router-dom";
+
 export function Home() {
   return (
-<div className="flex min-h-screen bg-stone-100">
+    <div className="flex min-h-screen flex-col bg-stone-100">
       <Header />
 
-      <main>
+      <main className="flex-1">
         {/* Hero */}
         <section className="mx-auto flex min-h-[80vh] max-w-5xl flex-col items-center justify-center px-6 text-center">
           <div className="mb-6 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-  Your attention. Your choice.
-</div>
+            Your attention. Your choice.
+          </div>
           <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-stone-900 sm:text-6xl">
             Watch what you came for.
             <span className="block text-stone-500">
@@ -143,18 +144,10 @@ function Feature({
   description: string;
 }) {
   return (
-    <div className="rounded-xl border border-stone-200 bg-stone-50 p-6 shadow-xs">
-      <span className="text-sm font-medium text-amber-700">
-        {number}
-      </span>
-
-      <h3 className="mt-8 text-lg font-semibold text-stone-900">
-        {title}
-      </h3>
-
-      <p className="mt-3 text-sm leading-6 text-stone-600">
-        {description}
-      </p>
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-6 shadow-sm">
+      <span className="text-sm font-medium text-amber-700">{number}</span>
+      <h3 className="mt-8 text-lg font-semibold text-stone-900">{title}</h3>
+      <p className="mt-3 text-sm leading-6 text-stone-600">{description}</p>
     </div>
   );
 }
@@ -170,17 +163,9 @@ function Step({
 }) {
   return (
     <div>
-      <span className="text-sm font-medium text-amber-700">
-        {number}
-      </span>
-
-      <h3 className="mt-5 text-xl font-semibold text-stone-900">
-        {title}
-      </h3>
-
-      <p className="mt-3 leading-7 text-stone-600">
-        {description}
-      </p>
+      <span className="text-sm font-medium text-amber-700">{number}</span>
+      <h3 className="mt-5 text-xl font-semibold text-stone-900">{title}</h3>
+      <p className="mt-3 leading-7 text-stone-600">{description}</p>
     </div>
   );
 }
