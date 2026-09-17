@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { SideBar } from "./sidebar";
 import { authFetch } from "../lib/api";
 import { MobileNav } from "./MobileNav";
+import { supabase } from "../lib/supabaseClient";
 
 interface Channel {
   id: string;
@@ -25,31 +26,81 @@ export function AddChannel() {
   const [urlSuccess, setUrlSuccess] = useState("");
   const [searchError, setSearchError] = useState("");
 
+  // Load channels + subscribe to realtime changes
   useEffect(() => {
-    loadChannels();
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    async function setupRealtime() {
+      // Initial load
+      await loadChannels();
+
+      // Get current authenticated user
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const userId = session?.user.id;
+
+      if (!userId) {
+        console.error("No authenticated user found");
+        return;
+      }
+
+      // Listen for changes to this user's channels
+      realtimeChannel = supabase
+        .channel(`user-channels-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "user_channels",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            loadChannels();
+          }
+        )
+        .subscribe((status) => {
+          console.log("Realtime status:", status);
+        });
+    }
+
+    setupRealtime();
+
+    return () => {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+    };
   }, []);
+
   async function handleRemoveChannel(channelId: string) {
     try {
       const response = await authFetch(
         `http://localhost:5000/youtube/url/${channelId}`,
         {
           method: "DELETE",
-        },
+        }
       );
 
       if (!response.ok) {
         throw new Error("Failed to remove channel");
       }
 
+      // Realtime will update the list.
+      // We don't technically need this anymore,
+      // but keeping it gives an immediate fallback.
       await loadChannels();
     } catch (error) {
       console.error(error);
     }
   }
+
   async function loadChannels() {
     try {
       const response = await authFetch(
-        "http://localhost:5000/youtube/url/my-channels",
+        "http://localhost:5000/youtube/url/my-channels"
       );
 
       if (!response.ok) {
@@ -57,6 +108,7 @@ export function AddChannel() {
       }
 
       const data = await response.json();
+
       setChannels(data);
     } catch (error) {
       console.error(error);
@@ -74,8 +126,8 @@ export function AddChannel() {
     try {
       const response = await authFetch(
         `http://localhost:5000/youtube/url/search?q=${encodeURIComponent(
-          searchQuery.trim(),
-        )}`,
+          searchQuery.trim()
+        )}`
       );
 
       const data = await response.json();
@@ -87,30 +139,38 @@ export function AddChannel() {
       setSearchResults(data);
     } catch (error) {
       console.error(error);
+
       setSearchError(
         error instanceof Error
           ? error.message
-          : "Failed to search. Please try again.",
+          : "Failed to search. Please try again."
       );
     } finally {
       setSearching(false);
     }
   }
 
-  async function handleFollowChannel(channelUrl: string, channelId: string) {
+  async function handleFollowChannel(
+    channelUrl: string,
+    channelId: string
+  ) {
     if (!channelUrl) return;
 
     setFollowingId(channelId);
+
     try {
-      const response = await authFetch("http://localhost:5000/youtube/url", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          url: channelUrl,
-        }),
-      });
+      const response = await authFetch(
+        "http://localhost:5000/youtube/url",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            url: channelUrl,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -118,6 +178,8 @@ export function AddChannel() {
         throw new Error(data.error ?? "Failed to follow channel");
       }
 
+      // Realtime will also trigger this,
+      // but keeping this makes the UI immediately responsive.
       await loadChannels();
     } catch (error) {
       console.error(error);
@@ -136,15 +198,18 @@ export function AddChannel() {
     setUrlSuccess("");
 
     try {
-      const response = await authFetch("http://localhost:5000/youtube/url", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          url: url.trim(),
-        }),
-      });
+      const response = await authFetch(
+        "http://localhost:5000/youtube/url",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            url: url.trim(),
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -155,12 +220,13 @@ export function AddChannel() {
       setUrl("");
       setUrlSuccess("Channel added successfully.");
 
+      // Realtime will also update this.
       await loadChannels();
     } catch (error) {
       setUrlError(
         error instanceof Error
           ? error.message
-          : "Something went wrong. Please try again.",
+          : "Something went wrong. Please try again."
       );
     } finally {
       setAddingUrl(false);
@@ -173,6 +239,7 @@ export function AddChannel() {
 
       <main className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+
           {/* Heading */}
           <header className="mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
@@ -206,6 +273,7 @@ export function AddChannel() {
                 {searching ? "Searching..." : "Search"}
               </button>
             </form>
+
             {searchError && (
               <p className="mt-3 text-sm font-medium text-red-700">
                 {searchError}
@@ -249,12 +317,14 @@ export function AddChannel() {
                         handleFollowChannel(
                           channel.url ||
                             `https://youtube.com/channel/${channel.id}`,
-                          channel.id,
+                          channel.id
                         )
                       }
                       className="shrink-0 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-700 hover:text-amber-800 disabled:opacity-50"
                     >
-                      {followingId === channel.id ? "Following..." : "Follow"}
+                      {followingId === channel.id
+                        ? "Following..."
+                        : "Follow"}
                     </button>
                   </div>
                 ))}
@@ -265,9 +335,11 @@ export function AddChannel() {
           {/* Divider */}
           <div className="my-10 flex items-center gap-4">
             <div className="h-px flex-1 bg-stone-200" />
+
             <span className="text-xs font-medium uppercase tracking-wider text-stone-400">
               or
             </span>
+
             <div className="h-px flex-1 bg-stone-200" />
           </div>
 

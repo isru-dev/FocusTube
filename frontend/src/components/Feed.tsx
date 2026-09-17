@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+
 import { authFetch } from "../lib/api";
+import { supabase } from "../lib/supabaseClient";
+
 import { SideBar } from "./sidebar";
 import { MobileNav } from "./MobileNav";
 
@@ -42,13 +45,93 @@ export function Feed() {
       }
     }
 
-    loadChannels();
+    async function setupRealtime() {
+      await loadChannels();
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const userId = session?.user.id;
+
+      if (!userId) {
+        console.error("No authenticated user found");
+        return;
+      }
+
+      const realtimeChannel = supabase
+        .channel(`feed-${userId}`)
+
+        // New videos
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "videos",
+          },
+          () => {
+            console.log("New video detected");
+            loadChannels();
+          }
+        )
+
+        // Video updates
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "videos",
+          },
+          () => {
+            loadChannels();
+          }
+        )
+
+        // Channel added/removed
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "user_channels",
+            filter: `user_id=eq.${userId}`,
+          },
+          () => {
+            console.log("Channel list changed");
+            loadChannels();
+          }
+        )
+
+        .subscribe((status) => {
+          console.log("Feed realtime:", status);
+        });
+
+      return realtimeChannel;
+    }
+
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    setupRealtime().then((channel) => {
+      realtimeChannel = channel;
+    });
+
+    return () => {
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+      }
+    };
   }, []);
 
   const handlePlayVideo = (video: Video) => {
     setPlayingId(video.id);
     setPlayingTitle(video.title);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   if (loading) {
@@ -84,7 +167,6 @@ export function Feed() {
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
-          {/* Immersive Full Page Video Player View */}
           {playingId ? (
             <div className="space-y-6">
               <button
@@ -92,7 +174,7 @@ export function Feed() {
                   setPlayingId(null);
                   setPlayingTitle("");
                 }}
-                className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-200/60 hover:text-stone-900 shadow-xs"
+                className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 shadow-xs transition hover:bg-stone-200/60 hover:text-stone-900"
               >
                 ← Back to feed
               </button>
@@ -113,15 +195,14 @@ export function Feed() {
                 <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
                   {playingTitle}
                 </h1>
+
                 <p className="mt-2 text-sm text-stone-500">
                   Playing distraction-free from your subscribed channels.
                 </p>
               </div>
             </div>
           ) : (
-            /* Normal Feed View */
             <>
-              {/* Page Header */}
               <header className="mb-8">
                 <p className="text-sm font-medium text-amber-700">
                   Your feed
@@ -136,7 +217,6 @@ export function Feed() {
                 </p>
               </header>
 
-              {/* Empty State */}
               {channels.length === 0 && (
                 <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
                   <p className="text-lg font-semibold text-stone-900">
@@ -157,11 +237,9 @@ export function Feed() {
                 </div>
               )}
 
-              {/* Channels */}
               <div className="space-y-12">
                 {channels.map((channel) => (
                   <section key={channel.id}>
-                    {/* Channel heading */}
                     <div className="mb-4 flex items-center gap-3">
                       {channel.thumbnail_url && (
                         <img
@@ -176,7 +254,6 @@ export function Feed() {
                       </h2>
                     </div>
 
-                    {/* Videos */}
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
                       {channel.videos.map((video) => (
                         <button
@@ -203,7 +280,6 @@ export function Feed() {
               </div>
             </>
           )}
-
         </div>
       </main>
 
