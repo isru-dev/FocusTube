@@ -8,7 +8,6 @@ export function SideBar() {
 
   const links = [
     { name: "Feed", path: "/Feed" },
-    { name: "Search", path: "/Search" },
     { name: "Saved", path: "/Saved" },
     { name: "Channels", path: "/AddChannel" },
     { name: "Settings", path: "/Settings" },

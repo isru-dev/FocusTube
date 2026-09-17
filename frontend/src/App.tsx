@@ -15,13 +15,13 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/sidebar" element={<SideBar />} />
         <Route
-          path="/add-channel"
+          path="/AddChannel"
           element={
             <ProtectedRoute>
               <AddChannel />
             </ProtectedRoute>
           }
-        />{" "}
+        />
         <Route path="/Feed" element={
            <ProtectedRoute>
              <Feed />

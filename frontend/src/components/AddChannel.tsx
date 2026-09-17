@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { SideBar } from "./sidebar";
 import { authFetch } from "../lib/api";
-import {MobileNav} from './MobileNav';
+import { MobileNav } from "./MobileNav";
+
 interface Channel {
   id: string;
   name: string;
   thumbnail_url: string;
+  url?: string;
 }
 
 export function AddChannel() {
@@ -17,18 +19,37 @@ export function AddChannel() {
 
   const [searching, setSearching] = useState(false);
   const [addingUrl, setAddingUrl] = useState(false);
+  const [followingId, setFollowingId] = useState<string | null>(null);
 
   const [urlError, setUrlError] = useState("");
   const [urlSuccess, setUrlSuccess] = useState("");
+  const [searchError, setSearchError] = useState("");
 
   useEffect(() => {
     loadChannels();
   }, []);
+  async function handleRemoveChannel(channelId: string) {
+    try {
+      const response = await authFetch(
+        `http://localhost:5000/youtube/url/${channelId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
+      if (!response.ok) {
+        throw new Error("Failed to remove channel");
+      }
+
+      await loadChannels();
+    } catch (error) {
+      console.error(error);
+    }
+  }
   async function loadChannels() {
     try {
       const response = await authFetch(
-        "http://localhost:5000/youtube/url/my-channels"
+        "http://localhost:5000/youtube/url/my-channels",
       );
 
       if (!response.ok) {
@@ -48,22 +69,60 @@ export function AddChannel() {
     if (!searchQuery.trim()) return;
 
     setSearching(true);
+    setSearchError("");
 
     try {
-      // Connect your YouTube search endpoint here.
-      console.log("Searching:", searchQuery.trim());
+      const response = await authFetch(
+        `http://localhost:5000/youtube/url/search?q=${encodeURIComponent(
+          searchQuery.trim(),
+        )}`,
+      );
 
-      // Example later:
-      // const response = await authFetch(
-      //   `http://localhost:5000/youtube/search?q=${encodeURIComponent(searchQuery)}`
-      // );
-      //
-      // const data = await response.json();
-      // setSearchResults(data);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to search channels");
+      }
+
+      setSearchResults(data);
+    } catch (error) {
+      console.error(error);
+      setSearchError(
+        error instanceof Error
+          ? error.message
+          : "Failed to search. Please try again.",
+      );
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function handleFollowChannel(channelUrl: string, channelId: string) {
+    if (!channelUrl) return;
+
+    setFollowingId(channelId);
+    try {
+      const response = await authFetch("http://localhost:5000/youtube/url", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          url: channelUrl,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to follow channel");
+      }
+
+      await loadChannels();
     } catch (error) {
       console.error(error);
     } finally {
-      setSearching(false);
+      setFollowingId(null);
     }
   }
 
@@ -77,18 +136,15 @@ export function AddChannel() {
     setUrlSuccess("");
 
     try {
-      const response = await authFetch(
-        "http://localhost:5000/youtube/url",
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            url: url.trim(),
-          }),
-        }
-      );
+      const response = await authFetch("http://localhost:5000/youtube/url", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+        }),
+      });
 
       const data = await response.json();
 
@@ -104,7 +160,7 @@ export function AddChannel() {
       setUrlError(
         error instanceof Error
           ? error.message
-          : "Something went wrong. Please try again."
+          : "Something went wrong. Please try again.",
       );
     } finally {
       setAddingUrl(false);
@@ -117,7 +173,6 @@ export function AddChannel() {
 
       <main className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-
           {/* Heading */}
           <header className="mb-8">
             <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
@@ -151,6 +206,11 @@ export function AddChannel() {
                 {searching ? "Searching..." : "Search"}
               </button>
             </form>
+            {searchError && (
+              <p className="mt-3 text-sm font-medium text-red-700">
+                {searchError}
+              </p>
+            )}
           </section>
 
           {/* Search Results */}
@@ -184,9 +244,17 @@ export function AddChannel() {
 
                     <button
                       type="button"
-                      className="shrink-0 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-700 hover:text-amber-800"
+                      disabled={followingId === channel.id}
+                      onClick={() =>
+                        handleFollowChannel(
+                          channel.url ||
+                            `https://youtube.com/channel/${channel.id}`,
+                          channel.id,
+                        )
+                      }
+                      className="shrink-0 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-700 hover:text-amber-800 disabled:opacity-50"
                     >
-                      Follow
+                      {followingId === channel.id ? "Following..." : "Follow"}
                     </button>
                   </div>
                 ))}
@@ -284,6 +352,7 @@ export function AddChannel() {
 
                     <button
                       type="button"
+                      onClick={() => handleRemoveChannel(channel.id)}
                       className="shrink-0 px-3 py-2 text-sm font-medium text-stone-500 transition hover:text-red-700"
                     >
                       Remove
@@ -295,8 +364,8 @@ export function AddChannel() {
           </section>
         </div>
       </main>
-    <MobileNav />
 
+      <MobileNav />
     </div>
   );
 }
