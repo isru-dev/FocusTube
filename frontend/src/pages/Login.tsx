@@ -26,7 +26,7 @@ export function Login() {
     }
 
     console.log("Logged in:", data.user);
-    navigate("/dashboard");
+    navigate("/Feed");
   }
 
   return (
