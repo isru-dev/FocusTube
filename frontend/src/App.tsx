@@ -6,6 +6,7 @@ import {ProtectedRoute} from './lib/ProtectedRoute.tsx'
 import { AddChannel } from "./components/AddChannel.tsx";
 import { Feed } from "./components/Feed.tsx";
 import { Home } from "./pages/Home.tsx";
+import { Saved } from "./pages/Saved.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 function App() {
   return (
@@ -19,6 +20,14 @@ function App() {
           element={
             <ProtectedRoute>
               <AddChannel />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/Saved"
+          element={
+            <ProtectedRoute>
+              <Saved />
             </ProtectedRoute>
           }
         />

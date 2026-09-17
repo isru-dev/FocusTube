@@ -1,6 +1,6 @@
 import { SideBar } from "../components/sidebar";
 
-export function Dashboard(){
+export function Saved(){
   return(
     <div>
       <SideBar />
