@@ -7,6 +7,7 @@ import { AddChannel } from "./components/AddChannel.tsx";
 import { Feed } from "./components/Feed.tsx";
 import { Home } from "./pages/Home.tsx";
 import { Saved } from "./pages/Saved.tsx";
+import {Settings} from './pages/Settings.tsx';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 function App() {
   return (
@@ -34,6 +35,11 @@ function App() {
         <Route path="/Feed" element={
            <ProtectedRoute>
              <Feed />
+            </ProtectedRoute>
+          } />
+          <Route path="/Settings" element={
+           <ProtectedRoute>
+             <Settings />
             </ProtectedRoute>
           } />
         <Route path="/" element={<Home />} />
