@@ -1,10 +1,8 @@
+
 import { useEffect, useState } from "react";
-
-import { authFetch } from "../lib/api";
-import { supabase } from "../lib/supabaseClient";
-
-import { SideBar } from "./sidebar";
-import { MobileNav } from "./MobileNav";
+import SideBar from "./SideBar";
+import { authFetch } from "./authFetch";
+import MobileNav from "./MobileNav";
 
 interface Video {
   id: string;
@@ -19,10 +17,10 @@ interface Channel {
   videos: Video[];
 }
 
-export function Feed() {
+export default function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
-  const [playingTitle, setPlayingTitle] = useState<string>("");
+  const [playingTitle, setPlayingTitle] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,7 +34,7 @@ export function Feed() {
           throw new Error("Failed to load channels");
         }
 
-        const data = await response.json();
+        const data: Channel[] = await response.json();
         setChannels(data);
       } catch (error) {
         console.error("Failed to load channels:", error);
@@ -45,86 +43,10 @@ export function Feed() {
       }
     }
 
-    async function setupRealtime() {
-      await loadChannels();
-
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      const userId = session?.user.id;
-
-      if (!userId) {
-        console.error("No authenticated user found");
-        return;
-      }
-
-      const realtimeChannel = supabase
-        .channel(`feed-${userId}`)
-
-        // New videos
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "videos",
-          },
-          () => {
-            console.log("New video detected");
-            loadChannels();
-          }
-        )
-
-        // Video updates
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "videos",
-          },
-          () => {
-            loadChannels();
-          }
-        )
-
-        // Channel added/removed
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "user_channels",
-            filter: `user_id=eq.${userId}`,
-          },
-          () => {
-            console.log("Channel list changed");
-            loadChannels();
-          }
-        )
-
-        .subscribe((status) => {
-          console.log("Feed realtime:", status);
-        });
-
-      return realtimeChannel;
-    }
-
-    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
-
-    setupRealtime().then((channel) => {
-      realtimeChannel = channel;
-    });
-
-    return () => {
-      if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-      }
-    };
+    loadChannels();
   }, []);
 
-  const handlePlayVideo = (video: Video) => {
+  function handlePlayVideo(video: Video) {
     setPlayingId(video.id);
     setPlayingTitle(video.title);
 
@@ -132,155 +54,145 @@ export function Feed() {
       top: 0,
       behavior: "smooth",
     });
-  };
+  }
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-stone-100">
+      <div className="flex min-h-screen bg-gray-950 text-white">
         <SideBar />
 
-        <main className="min-w-0 flex-1 p-6 lg:p-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="animate-pulse space-y-8">
-              <div className="h-7 w-32 rounded bg-stone-200" />
+        <main className="flex-1 p-6">
+          <h1 className="mb-6 text-2xl font-bold">Your Feed</h1>
 
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                {[1, 2, 3, 4].map((item) => (
-                  <div key={item} className="space-y-3">
-                    <div className="aspect-video rounded-xl bg-stone-200" />
-                    <div className="h-4 w-3/4 rounded bg-stone-200" />
-                    <div className="h-4 w-1/2 rounded bg-stone-200" />
-                  </div>
-                ))}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div
+                key={item}
+                className="animate-pulse rounded-lg bg-gray-800 p-4"
+              >
+                <div className="mb-3 aspect-video rounded bg-gray-700" />
+                <div className="h-4 w-3/4 rounded bg-gray-700" />
               </div>
-            </div>
+            ))}
           </div>
         </main>
+
+        <MobileNav />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-stone-100">
+    <div className="flex min-h-screen bg-gray-950 text-white">
       <SideBar />
 
-      <main className="min-w-0 flex-1">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6">
+        {playingId ? (
+          <section className="mb-8">
+            <button
+              type="button"
+              onClick={() => {
+                setPlayingId(null);
+                setPlayingTitle("");
+              }}
+              className="mb-4 rounded bg-gray-800 px-4 py-2 hover:bg-gray-700"
+            >
+              ← Back to feed
+            </button>
 
-          {playingId ? (
-            <div className="space-y-6">
-              <button
-                onClick={() => {
-                  setPlayingId(null);
-                  setPlayingTitle("");
-                }}
-                className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 shadow-xs transition hover:bg-stone-200/60 hover:text-stone-900"
-              >
-                ← Back to feed
-              </button>
+            <h1 className="mb-4 text-xl font-bold">
+              {playingTitle}
+            </h1>
 
-              <div className="overflow-hidden rounded-2xl bg-stone-900 shadow-lg">
-                <div className="aspect-video w-full">
-                  <iframe
-                    className="h-full w-full border-0"
-                    src={`https://www.youtube.com/embed/${playingId}?autoplay=1&rel=0`}
-                    title={playingTitle}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              </div>
+            <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
+              <iframe
+                key={playingId}
+                className="h-full w-full"
+                src={`https://www.youtube.com/embed/${playingId}?autoplay=1&rel=0`}
 
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
-                  {playingTitle}
-                </h1>
-
-                <p className="mt-2 text-sm text-stone-500">
-                  Playing distraction-free from your subscribed channels.
-                </p>
-              </div>
+                title={playingTitle}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+              />
             </div>
-          ) : (
-            <>
-              <header className="mb-8">
-                <p className="text-sm font-medium text-amber-700">
-                  Your feed
+          </section>
+        ) : (
+          <>
+            <header className="mb-8">
+              <h1 className="text-3xl font-bold">Your Feed</h1>
+              <p className="mt-2 text-gray-400">
+                Videos from the channels you follow.
+              </p>
+            </header>
+
+            {channels.length === 0 ? (
+              <div className="rounded-lg border border-gray-800 p-8 text-center">
+                <h2 className="mb-2 text-xl font-semibold">
+                  Your feed is empty
+                </h2>
+
+                <p className="mb-5 text-gray-400">
+                  Follow some YouTube channels to see their videos here.
                 </p>
 
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
-                  Latest from your channels
-                </h1>
-
-                <p className="mt-2 text-sm text-stone-500">
-                  Only videos from channels you follow.
-                </p>
-              </header>
-
-              {channels.length === 0 && (
-                <div className="flex min-h-[50vh] flex-col items-center justify-center text-center">
-                  <p className="text-lg font-semibold text-stone-900">
-                    Your feed is empty.
-                  </p>
-
-                  <p className="mt-2 max-w-md text-sm leading-6 text-stone-500">
-                    Follow a few channels to start building a feed that belongs
-                    to you.
-                  </p>
-
-                  <a
-                    href="/AddChannel"
-                    className="mt-6 rounded-lg bg-amber-700 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-amber-800"
-                  >
-                    Add a channel
-                  </a>
-                </div>
-              )}
-
-              <div className="space-y-12">
+                <a
+                  href="/AddChannel"
+                  className="inline-block rounded-lg bg-red-600 px-5 py-2 font-medium hover:bg-red-700"
+                >
+                  Find channels
+                </a>
+              </div>
+            ) : (
+              <div className="space-y-10">
                 {channels.map((channel) => (
                   <section key={channel.id}>
                     <div className="mb-4 flex items-center gap-3">
-                      {channel.thumbnail_url && (
-                        <img
-                          src={channel.thumbnail_url}
-                          alt=""
-                          className="h-9 w-9 rounded-full object-cover"
-                        />
-                      )}
+                      <img
+                        src={channel.thumbnail_url}
+                        alt={channel.name}
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
 
-                      <h2 className="text-lg font-semibold text-stone-900">
+                      <h2 className="text-xl font-semibold">
                         {channel.name}
                       </h2>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-                      {channel.videos.map((video) => (
-                        <button
-                          key={video.id}
-                          onClick={() => handlePlayVideo(video)}
-                          className="group min-w-0 text-left"
-                        >
-                          <div className="overflow-hidden rounded-xl bg-stone-200">
+                    {channel.videos.length === 0 ? (
+                      <p className="text-gray-400">
+                        No videos available for this channel yet.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        {channel.videos.map((video) => (
+                          <button
+                            key={video.id}
+                            type="button"
+                            onClick={() => handlePlayVideo(video)}
+                            className="overflow-hidden rounded-lg bg-gray-900 text-left transition hover:bg-gray-800"
+                          >
                             <img
                               src={video.thumbnail_url}
-                              alt=""
-                              className="aspect-video w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                              alt={video.title}
+                              className="aspect-video w-full object-cover"
                             />
-                          </div>
 
-                          <h3 className="mt-3 line-clamp-2 text-sm font-medium leading-5 text-stone-900 group-hover:text-amber-800">
-                            {video.title}
-                          </h3>
-                        </button>
-                      ))}
-                    </div>
+                            <div className="p-3">
+                              <h3 className="line-clamp-2 font-medium">
+                                {video.title}
+                              </h3>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </section>
                 ))}
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </main>
 
       <MobileNav />

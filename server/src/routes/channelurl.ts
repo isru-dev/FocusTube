@@ -5,16 +5,45 @@ import { supabaseAdmin } from "../lib/supabaseAdmin.ts";
 
 const router = Router();
 
-function extractHandle(input: string): string {
-  const trimmed = input.trim();
-  const urlMatch = trimmed.match(/youtube\.com\/@([\w.-]+)/);
 
-  if (urlMatch) {
-    return urlMatch[1]!;
+function extractChannelIdentifier(input: string): {
+  type: "handle" | "id";
+  value: string;
+} {
+  const trimmed = input.trim();
+
+  // Accept a direct channel ID, such as UCxxxxxxxx
+  if (/^UC[\w-]+$/.test(trimmed)) {
+    return { type: "id", value: trimmed };
   }
 
-  return trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  // Accept a YouTube channel URL
+  const channelIdMatch = trimmed.match(
+    /youtube\.com\/channel\/(UC[\w-]+)/
+  );
+
+  if (channelIdMatch) {
+    return { type: "id", value: channelIdMatch[1]! };
+  }
+
+  // Accept a YouTube handle URL
+  const handleMatch = trimmed.match(
+    /youtube\.com\/@([\w.-]+)/
+  );
+
+  if (handleMatch) {
+    return { type: "handle", value: handleMatch[1]! };
+  }
+
+  // Accept a bare handle, such as @SomeCreator
+  if (trimmed.startsWith("@")) {
+    return { type: "handle", value: trimmed.slice(1) };
+  }
+
+  // Accept a bare handle, such as SomeCreator
+  return { type: "handle", value: trimmed };
 }
+
 
 // 1. SEARCH channels by name using YouTube API
 router.get('/search', requireAuth, async (req: Request, res: Response) => {
@@ -58,13 +87,37 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'url is required' });
   }
 
-  const handle = extractHandle(url);
+  
+const identifier = extractChannelIdentifier(url);
 
-  // Resolve handle -> channel info (includes uploads playlist ID)
-  const channelResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&forHandle=${handle}&key=${process.env.YOUTUBE_API_KEY}`
-  );
-  const channelData = await channelResponse.json();
+const params = new URLSearchParams({
+  part: "snippet,contentDetails",
+  key: process.env.YOUTUBE_API_KEY!,
+});
+
+if (identifier.type === "id") {
+  params.set("id", identifier.value);
+} else {
+  params.set("forHandle", identifier.value);
+}
+
+const channelResponse = await fetch(
+  `https://www.googleapis.com/youtube/v3/channels?${params.toString()}`
+);
+
+const channelData = await channelResponse.json();
+
+if (!channelResponse.ok) {
+  console.error("YouTube channel lookup failed:", channelData);
+  return res.status(502).json({
+    error: channelData.error?.message ?? "YouTube channel lookup failed",
+  });
+}
+
+if (!channelData.items || channelData.items.length === 0) {
+  return res.status(404).json({ error: "Channel not found" });
+}
+
 
   if (!channelData.items || channelData.items.length === 0) {
     return res.status(404).json({ error: 'Channel not found' });

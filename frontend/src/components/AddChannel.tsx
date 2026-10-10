@@ -159,19 +159,13 @@ export function AddChannel() {
     setFollowingId(channelId);
 
     try {
-      const response = await authFetch(
-        "http://localhost:5000/youtube/url",
-        {
-          method: "POST",
-          headers: {
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            url: channelUrl,
-          }),
-        }
-      );
-
+      const response = await authFetch("http://localhost:5000/youtube/url", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({ url: channelUrl }),
+});
       const data = await response.json();
 
       if (!response.ok) {
@@ -283,52 +277,63 @@ export function AddChannel() {
 
           {/* Search Results */}
           {searchResults.length > 0 && (
+            
             <section className="mt-8">
               <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-stone-500">
                 Search results
               </h2>
 
-              <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
-                {searchResults.map((channel) => (
-                  <div
-                    key={channel.id}
-                    className="flex items-center gap-4 border-b border-stone-200 p-4 last:border-0"
-                  >
-                    <img
-                      src={channel.thumbnail_url}
-                      alt=""
-                      className="h-12 w-12 shrink-0 rounded-full object-cover"
-                    />
+              
+<div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+  {searchResults.map((channel) => {
+    const isFollowed = channels.some(
+      (item) => item.id === channel.id
+    );
 
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-semibold text-stone-900">
-                        {channel.name}
-                      </h3>
+    return (
+      <div
+        key={channel.id}
+        className="flex items-center gap-4 border-b border-stone-200 p-4 last:border-0"
+      >
+        <img
+          src={channel.thumbnail_url}
+          alt=""
+          className="h-12 w-12 shrink-0 rounded-full object-cover"
+        />
 
-                      <p className="mt-1 text-sm text-stone-500">
-                        YouTube channel
-                      </p>
-                    </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-stone-900">
+            {channel.name}
+          </h3>
 
-                    <button
-                      type="button"
-                      disabled={followingId === channel.id}
-                      onClick={() =>
-                        handleFollowChannel(
-                          channel.url ||
-                            `https://youtube.com/channel/${channel.id}`,
-                          channel.id
-                        )
-                      }
-                      className="shrink-0 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-700 hover:text-amber-800 disabled:opacity-50"
-                    >
-                      {followingId === channel.id
-                        ? "Following..."
-                        : "Follow"}
-                    </button>
-                  </div>
-                ))}
-              </div>
+          <p className="mt-1 text-sm text-stone-500">
+            YouTube channel
+          </p>
+        </div>
+
+        <button
+          type="button"
+          disabled={followingId === channel.id || isFollowed}
+          onClick={() =>
+            handleFollowChannel(
+              channel.url ||
+                `https://youtube.com/channel/${channel.id}`,
+              channel.id
+            )
+          }
+          className="shrink-0 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-700 hover:text-amber-800 disabled:opacity-50"
+        >
+          {followingId === channel.id
+            ? "Following..."
+            : isFollowed
+              ? "Followed"
+              : "Follow"}
+        </button>
+      </div>
+    );
+  })}
+</div>
+
             </section>
           )}
 

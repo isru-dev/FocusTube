@@ -1,4 +1,4 @@
-import { Header } from "../components/header";
+import { Header } from "../components/Header";
 import { Link } from "react-router-dom";
 
 export function Home() {
@@ -152,7 +152,8 @@ function Feature({
   );
 }
 
-function Step({
+function Step
+({
   number,
   title,
   description,
