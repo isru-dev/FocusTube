@@ -1,8 +1,10 @@
 
 import { useEffect, useState } from "react";
-import SideBar from "./SideBar";
-import { authFetch } from "./authFetch";
-import MobileNav from "./MobileNav";
+import { Link } from "react-router-dom";
+import { authFetch } from "../lib/api";
+
+import { SideBar } from "./sidebar";
+import { MobileNav } from "./MobileNav";
 
 interface Video {
   id: string;
@@ -17,7 +19,7 @@ interface Channel {
   videos: Video[];
 }
 
-export default function Feed() {
+export function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
@@ -58,20 +60,22 @@ export default function Feed() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-950 text-white">
+      <div className="flex min-h-screen bg-stone-100 text-stone-900">
         <SideBar />
 
-        <main className="flex-1 p-6">
-          <h1 className="mb-6 text-2xl font-bold">Your Feed</h1>
+        <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6">
+          <h1 className="mb-6 text-2xl font-bold">
+            Your Feed
+          </h1>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div
                 key={item}
-                className="animate-pulse rounded-lg bg-gray-800 p-4"
+                className="animate-pulse rounded-lg bg-stone-200 p-4"
               >
-                <div className="mb-3 aspect-video rounded bg-gray-700" />
-                <div className="h-4 w-3/4 rounded bg-gray-700" />
+                <div className="mb-3 aspect-video rounded bg-stone-300" />
+                <div className="h-4 w-3/4 rounded bg-stone-300" />
               </div>
             ))}
           </div>
@@ -83,7 +87,7 @@ export default function Feed() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-950 text-white">
+    <div className="flex min-h-screen bg-stone-100 text-stone-900">
       <SideBar />
 
       <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6">
@@ -95,7 +99,7 @@ export default function Feed() {
                 setPlayingId(null);
                 setPlayingTitle("");
               }}
-              className="mb-4 rounded bg-gray-800 px-4 py-2 hover:bg-gray-700"
+              className="mb-4 rounded bg-stone-200 px-4 py-2 text-stone-900 transition hover:bg-stone-300"
             >
               ← Back to feed
             </button>
@@ -109,7 +113,6 @@ export default function Feed() {
                 key={playingId}
                 className="h-full w-full"
                 src={`https://www.youtube.com/embed/${playingId}?autoplay=1&rel=0`}
-
                 title={playingTitle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
@@ -120,28 +123,31 @@ export default function Feed() {
         ) : (
           <>
             <header className="mb-8">
-              <h1 className="text-3xl font-bold">Your Feed</h1>
-              <p className="mt-2 text-gray-400">
+              <h1 className="text-3xl font-bold">
+                Your Feed
+              </h1>
+
+              <p className="mt-2 text-stone-600">
                 Videos from the channels you follow.
               </p>
             </header>
 
             {channels.length === 0 ? (
-              <div className="rounded-lg border border-gray-800 p-8 text-center">
+              <div className="rounded-lg border border-stone-300 p-8 text-center">
                 <h2 className="mb-2 text-xl font-semibold">
                   Your feed is empty
                 </h2>
 
-                <p className="mb-5 text-gray-400">
+                <p className="mb-5 text-stone-600">
                   Follow some YouTube channels to see their videos here.
                 </p>
 
-                <a
-                  href="/AddChannel"
-                  className="inline-block rounded-lg bg-red-600 px-5 py-2 font-medium hover:bg-red-700"
+                <Link
+                  to="/AddChannel"
+                  className="inline-block rounded-lg bg-red-600 px-5 py-2 font-medium text-white transition hover:bg-red-700"
                 >
                   Find channels
-                </a>
+                </Link>
               </div>
             ) : (
               <div className="space-y-10">
@@ -160,7 +166,7 @@ export default function Feed() {
                     </div>
 
                     {channel.videos.length === 0 ? (
-                      <p className="text-gray-400">
+                      <p className="text-stone-600">
                         No videos available for this channel yet.
                       </p>
                     ) : (
@@ -170,7 +176,7 @@ export default function Feed() {
                             key={video.id}
                             type="button"
                             onClick={() => handlePlayVideo(video)}
-                            className="overflow-hidden rounded-lg bg-gray-900 text-left transition hover:bg-gray-800"
+                            className="overflow-hidden rounded-lg bg-white text-left shadow-sm transition hover:bg-stone-200"
                           >
                             <img
                               src={video.thumbnail_url}
@@ -179,7 +185,7 @@ export default function Feed() {
                             />
 
                             <div className="p-3">
-                              <h3 className="line-clamp-2 font-medium">
+                              <h3 className="line-clamp-2 font-medium text-stone-900">
                                 {video.title}
                               </h3>
                             </div>

@@ -80,98 +80,157 @@ router.get('/search', requireAuth, async (req: Request, res: Response) => {
 });
 
 // 2. POST add channel via URL
+
 router.post('/', requireAuth, async (req: Request, res: Response) => {
-  const { url } = req.body;
+  try {
+    const { url } = req.body;
 
-  if (!url) {
-    return res.status(400).json({ error: 'url is required' });
-  }
-
-  
-const identifier = extractChannelIdentifier(url);
-
-const params = new URLSearchParams({
-  part: "snippet,contentDetails",
-  key: process.env.YOUTUBE_API_KEY!,
-});
-
-if (identifier.type === "id") {
-  params.set("id", identifier.value);
-} else {
-  params.set("forHandle", identifier.value);
-}
-
-const channelResponse = await fetch(
-  `https://www.googleapis.com/youtube/v3/channels?${params.toString()}`
-);
-
-const channelData = await channelResponse.json();
-
-if (!channelResponse.ok) {
-  console.error("YouTube channel lookup failed:", channelData);
-  return res.status(502).json({
-    error: channelData.error?.message ?? "YouTube channel lookup failed",
-  });
-}
-
-if (!channelData.items || channelData.items.length === 0) {
-  return res.status(404).json({ error: "Channel not found" });
-}
-
-
-  if (!channelData.items || channelData.items.length === 0) {
-    return res.status(404).json({ error: 'Channel not found' });
-  }
-
-  const channel = channelData.items[0];
-  const channelId = channel.id;
-  const channelName = channel.snippet.title;
-  const thumbnailUrl = channel.snippet.thumbnails.default.url;
-  const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
-
-  // Save the channel
-  const { error: channelError } = await supabaseAdmin
-    .from('channels')
-    .upsert({ id: channelId, name: channelName, thumbnail_url: thumbnailUrl });
-
-  if (channelError) {
-    return res.status(500).json({ error: channelError.message });
-  }
-
-  // Link this user to the channel
-  const { error: linkError } = await supabaseAdmin
-    .from('user_channels')
-    .insert({ user_id: req.userId, channel_id: channelId });
-
-  if (linkError && linkError.code !== '23505') {
-    return res.status(500).json({ error: linkError.message });
-  }
-
-  // Fetch videos from the uploads playlist
-  const videosResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsPlaylistId}&maxResults=10&key=${process.env.YOUTUBE_API_KEY}`
-  );
-  const videosData = await videosResponse.json();
-
-  const videos = (videosData.items ?? []).map((item: any) => ({
-    id: item.snippet.resourceId.videoId,
-    channel_id: channelId,
-    title: item.snippet.title,
-    thumbnail_url: item.snippet.thumbnails.default.url,
-    published_at: item.snippet.publishedAt,
-  }));
-
-  if (videos.length > 0) {
-    const { error: videosError } = await supabaseAdmin
-      .from('videos')
-      .upsert(videos);
-
-    if (videosError) {
-      return res.status(500).json({ error: videosError.message });
+    if (!url) {
+      return res.status(400).json({ error: "url is required" });
     }
-  }
 
-  res.status(201).json({ id: channelId, name: channelName, thumbnail_url: thumbnailUrl, videoCount: videos.length });
+    const identifier = extractChannelIdentifier(url);
+
+    const params = new URLSearchParams({
+      part: "snippet,contentDetails",
+      key: process.env.YOUTUBE_API_KEY!,
+    });
+
+    if (identifier.type === "id") {
+      params.set("id", identifier.value);
+    } else {
+      params.set("forHandle", identifier.value);
+    }
+
+    const channelResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?${params.toString()}`
+    );
+
+    const channelData = await channelResponse.json();
+
+    if (!channelResponse.ok) {
+      console.error("YouTube channel lookup failed:", channelData);
+
+      return res.status(502).json({
+        error:
+          channelData.error?.message ??
+          "YouTube channel lookup failed",
+      });
+    }
+
+    if (!channelData.items || channelData.items.length === 0) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+
+    const channel = channelData.items[0];
+    const channelId = channel.id;
+    const channelName = channel.snippet.title;
+
+    // Prefer the highest-resolution channel thumbnail available.
+    const thumbnailUrl =
+      channel.snippet.thumbnails?.high?.url ||
+      channel.snippet.thumbnails?.medium?.url ||
+      channel.snippet.thumbnails?.default?.url ||
+      "";
+
+    const uploadsPlaylistId =
+      channel.contentDetails.relatedPlaylists.uploads;
+
+    // Save the channel.
+    const { error: channelError } = await supabaseAdmin
+      .from("channels")
+      .upsert({
+        id: channelId,
+        name: channelName,
+        thumbnail_url: thumbnailUrl,
+      });
+
+    if (channelError) {
+      return res.status(500).json({ error: channelError.message });
+    }
+
+    // Link this user to the channel.
+    const { error: linkError } = await supabaseAdmin
+      .from("user_channels")
+      .insert({
+        user_id: req.userId,
+        channel_id: channelId,
+      });
+
+    if (linkError && linkError.code !== "23505") {
+      return res.status(500).json({ error: linkError.message });
+    }
+
+    // Fetch videos from the uploads playlist.
+    const videosParams = new URLSearchParams({
+      part: "snippet",
+      playlistId: uploadsPlaylistId,
+      maxResults: "10",
+      key: process.env.YOUTUBE_API_KEY!,
+    });
+
+    const videosResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/playlistItems?${videosParams.toString()}`
+    );
+
+    const videosData = await videosResponse.json();
+
+    if (!videosResponse.ok) {
+      console.error("YouTube video lookup failed:", videosData);
+
+      return res.status(502).json({
+        error:
+          videosData.error?.message ??
+          "YouTube video lookup failed",
+      });
+    }
+
+    const videos = (videosData.items ?? [])
+      .filter((item: any) => item.snippet?.resourceId?.videoId)
+      .map((item: any) => {
+        const thumbnails = item.snippet.thumbnails ?? {};
+
+        // Prefer high-resolution video thumbnails.
+        const videoThumbnail =
+          thumbnails.maxres?.url ||
+          thumbnails.standard?.url ||
+          thumbnails.high?.url ||
+          thumbnails.medium?.url ||
+          thumbnails.default?.url ||
+          "";
+
+        return {
+          id: item.snippet.resourceId.videoId,
+          channel_id: channelId,
+          title: item.snippet.title,
+          thumbnail_url: videoThumbnail,
+          published_at: item.snippet.publishedAt,
+        };
+      });
+
+    if (videos.length > 0) {
+      const { error: videosError } = await supabaseAdmin
+        .from("videos")
+        .upsert(videos);
+
+      if (videosError) {
+        return res.status(500).json({ error: videosError.message });
+      }
+    }
+
+    return res.status(201).json({
+      id: channelId,
+      name: channelName,
+      thumbnail_url: thumbnailUrl,
+      videoCount: videos.length,
+    });
+  } catch (error) {
+    console.error("Error adding YouTube channel:", error);
+
+    return res.status(500).json({
+      error: "An unexpected error occurred while adding the channel",
+    });
+  }
 });
 
 // 3. GET my-channels feed
