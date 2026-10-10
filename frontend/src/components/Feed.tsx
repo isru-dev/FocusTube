@@ -1,7 +1,8 @@
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { authFetch } from "../lib/api";
+import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./sidebar";
 import { MobileNav } from "./MobileNav";
 
@@ -18,7 +19,8 @@ interface Channel {
   videos: Video[];
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -32,7 +34,41 @@ export function Feed() {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
 
+  const [savedVideoIds, setSavedVideoIds] = useState<string[]>([]);
+  const [savingVideoIds, setSavingVideoIds] = useState<string[]>([]);
+  const [saveError, setSaveError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const loadSavedVideos = useCallback(async () => {
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+
+      if (!user) {
+        setSavedVideoIds([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("saved_videos")
+        .select("video_id")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setSavedVideoIds((data ?? []).map((item) => item.video_id));
+    } catch (error) {
+      console.error("Failed to load saved videos:", error);
+    }
+  }, []);
+
   useEffect(() => {
+    let active = true;
+
     async function loadChannels() {
       try {
         const response = await authFetch(
@@ -44,16 +80,24 @@ export function Feed() {
         }
 
         const data: Channel[] = await response.json();
-        setChannels(data);
+
+        if (active) {
+          setChannels(data);
+        }
       } catch (error) {
         console.error("Failed to load channels:", error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
-    loadChannels();
-  }, []);
+    void loadChannels();
+    void loadSavedVideos();
+
+    return () => {
+      active = false;
+    };
+  }, [loadSavedVideos]);
 
   function toggleChannel(channelId: string) {
     setExpandedChannels((current) =>
@@ -116,6 +160,139 @@ export function Feed() {
     });
   }
 
+  async function toggleSavedVideo(video: Video) {
+    if (savingVideoIds.includes(video.id)) return;
+
+    setSavingVideoIds((current) => [...current, video.id]);
+    setSaveError("");
+    setSaveMessage("");
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError) throw userError;
+
+      if (!user) {
+        setSaveError("Please log in to save videos.");
+        return;
+      }
+
+      const isSaved = savedVideoIds.includes(video.id);
+
+      if (isSaved) {
+        const { error } = await supabase
+          .from("saved_videos")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("video_id", video.id);
+
+        if (error) throw error;
+
+        setSavedVideoIds((current) =>
+          current.filter((id) => id !== video.id)
+        );
+        setSaveMessage("Video removed from your saved videos.");
+      } else {
+        const { error } = await supabase
+          .from("saved_videos")
+          .insert({
+            user_id: user.id,
+            video_id: video.id,
+            title: video.title,
+            thumbnail_url: video.thumbnail_url || null,
+          });
+
+        if (error) {
+          // Handle a duplicate gracefully in case another request
+          // already saved this video.
+          if (error.code === "23505") {
+            await loadSavedVideos();
+          } else {
+            throw error;
+          }
+        } else {
+          setSavedVideoIds((current) =>
+            current.includes(video.id)
+              ? current
+              : [...current, video.id]
+          );
+        }
+
+        setSaveMessage("Video saved successfully.");
+      }
+    } catch (error) {
+      console.error("Could not update saved video:", error);
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Could not update the saved video. Please try again."
+      );
+    } finally {
+      setSavingVideoIds((current) =>
+        current.filter((id) => id !== video.id)
+      );
+    }
+  }
+
+  function renderVideoCard(video: Video) {
+    const isSaved = savedVideoIds.includes(video.id);
+    const isSaving = savingVideoIds.includes(video.id);
+
+    return (
+      <article
+        key={video.id}
+        className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm transition hover:shadow-md dark:border-stone-800 dark:bg-stone-900"
+      >
+        <button
+          type="button"
+          onClick={() => handlePlayVideo(video)}
+          className="block w-full text-left"
+        >
+          <img
+            src={video.thumbnail_url}
+            alt={video.title}
+            loading="lazy"
+            className="aspect-video w-full object-cover"
+          />
+        </button>
+
+        <div className="flex items-start gap-3 p-3">
+          <button
+            type="button"
+            onClick={() => handlePlayVideo(video)}
+            className="min-w-0 flex-1 text-left"
+          >
+            <h3 className="line-clamp-2 font-medium text-stone-900 dark:text-stone-100">
+              {video.title}
+            </h3>
+            <p className="mt-2 text-xs text-stone-500 dark:text-stone-400">
+              Watch video ▶
+            </p>
+          </button>
+
+          <button
+            type="button"
+            aria-pressed={isSaved}
+            aria-label={isSaved ? "Unsave video" : "Save video"}
+            title={isSaved ? "Remove from saved videos" : "Save for later"}
+            disabled={isSaving}
+            onClick={() => void toggleSavedVideo(video)}
+            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition disabled:cursor-wait disabled:opacity-50 ${
+              isSaved
+                ? "border-amber-500 bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                : "border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+            }`}
+          >
+            {isSaving ? "..." : isSaved ? "🔖 Saved" : "＋ Save"}
+          </button>
+        </div>
+      </article>
+    );
+  }
+
   const pageClass =
     "flex min-h-screen bg-stone-100 text-stone-900 transition-colors dark:bg-stone-950 dark:text-stone-100";
 
@@ -158,7 +335,7 @@ export function Feed() {
                 setPlayingId(null);
                 setPlayingTitle("");
               }}
-              className="mb-4 rounded-lg bg-stone-200 px-4 py-2 text-stone-900 transition hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
+              className="mb-4 rounded-lg bg-stone-200 px-4 py-2 transition hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700"
             >
               ← Back to feed
             </button>
@@ -169,7 +346,7 @@ export function Feed() {
               <iframe
                 key={playingId}
                 className="h-full w-full"
-                src={`https://www.youtube.com/embed/${playingId}?autoplay=1&rel=0`}
+                src={`https://www.youtube.com/embed/${encodeURIComponent(playingId)}?autoplay=1&rel=0`}
                 title={playingTitle}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
@@ -181,13 +358,29 @@ export function Feed() {
           <>
             <header className="mb-8">
               <h1 className="text-3xl font-bold">Your Feed</h1>
-
               <p className="mt-2 text-stone-600 dark:text-stone-400">
                 Discover videos from YouTube and your followed creators.
               </p>
             </header>
 
-            {/* YouTube search */}
+            {saveError && (
+              <p
+                role="alert"
+                className="mb-4 rounded-lg bg-red-100 p-4 text-red-700 dark:bg-red-950 dark:text-red-300"
+              >
+                {saveError}
+              </p>
+            )}
+
+            {saveMessage && (
+              <p
+                role="status"
+                className="mb-4 rounded-lg bg-amber-100 p-3 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+              >
+                {saveMessage}
+              </p>
+            )}
+
             <form
               onSubmit={handleSearch}
               className="mb-8 flex flex-col gap-3 sm:flex-row"
@@ -212,7 +405,7 @@ export function Feed() {
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="rounded-lg bg-stone-200 px-4 py-3 text-stone-900 transition hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
+                  className="rounded-lg bg-stone-200 px-4 py-3 transition hover:bg-stone-300 dark:bg-stone-800 dark:hover:bg-stone-700"
                 >
                   Clear
                 </button>
@@ -231,32 +424,14 @@ export function Feed() {
               </p>
             )}
 
-            {/* Search results */}
             {searchResults.length > 0 ? (
               <section className="mb-10">
-                <h2 className="mb-4 text-xl font-semibold">Search results</h2>
+                <h2 className="mb-4 text-xl font-semibold">
+                  Search results
+                </h2>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {searchResults.map((video) => (
-                    <button
-                      key={video.id}
-                      type="button"
-                      onClick={() => handlePlayVideo(video)}
-                      className="overflow-hidden rounded-lg border border-stone-200 bg-white text-left shadow-sm transition hover:bg-stone-100 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800"
-                    >
-                      <img
-                        src={video.thumbnail_url}
-                        alt={video.title}
-                        className="aspect-video w-full object-cover"
-                      />
-
-                      <div className="p-3">
-                        <h3 className="line-clamp-2 font-medium text-stone-900 dark:text-stone-100">
-                          {video.title}
-                        </h3>
-                      </div>
-                    </button>
-                  ))}
+                  {searchResults.map((video) => renderVideoCard(video))}
                 </div>
               </section>
             ) : searchQuery.trim() && !searching && !searchError ? (
@@ -265,7 +440,6 @@ export function Feed() {
               </p>
             ) : null}
 
-            {/* Followed creators */}
             <section>
               <h2 className="mb-6 text-2xl font-bold">
                 Your followed creators
@@ -311,10 +485,9 @@ export function Feed() {
                           />
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-stone-900 dark:text-stone-100">
+                            <h3 className="font-semibold">
                               {channel.name}
                             </h3>
-
                             <p className="text-sm text-stone-600 dark:text-stone-400">
                               {channel.videos.length} videos
                             </p>
@@ -333,26 +506,9 @@ export function Feed() {
                               </p>
                             ) : (
                               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                {channel.videos.map((video) => (
-                                  <button
-                                    key={video.id}
-                                    type="button"
-                                    onClick={() => handlePlayVideo(video)}
-                                    className="overflow-hidden rounded-lg bg-stone-100 text-left transition hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700"
-                                  >
-                                    <img
-                                      src={video.thumbnail_url}
-                                      alt={video.title}
-                                      className="aspect-video w-full object-cover"
-                                    />
-
-                                    <div className="p-3">
-                                      <h4 className="line-clamp-2 font-medium text-stone-900 dark:text-stone-100">
-                                        {video.title}
-                                      </h4>
-                                    </div>
-                                  </button>
-                                ))}
+                                {channel.videos.map((video) =>
+                                  renderVideoCard(video)
+                                )}
                               </div>
                             )}
                           </div>
@@ -371,4 +527,3 @@ export function Feed() {
     </div>
   );
 }
-
