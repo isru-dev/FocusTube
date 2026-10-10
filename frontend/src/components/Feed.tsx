@@ -18,7 +18,7 @@ interface Channel {
   thumbnail_url: string;
   videos: Video[];
 }
-
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 export function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function Feed() {
     async function loadChannels() {
       try {
         const response = await authFetch(
-          "http://localhost:5000/youtube/url/my-channels"
+          `${API_URL}/youtube/url/my-channels`
         );
 
         if (!response.ok) {
@@ -78,7 +78,7 @@ export function Feed() {
 
     try {
       const response = await authFetch(
-        `http://localhost:5000/youtube/url/videos/search?q=${encodeURIComponent(query)}`
+        `${API_URL}/youtube/url/videos/search?q=${encodeURIComponent(query)}`
       );
 
       if (!response.ok) {

@@ -2,7 +2,6 @@ import { NavLink } from "react-router-dom";
 
 const navItems = [
   { to: "/Feed", label: "Feed" },
-  { to: "/search", label: "Search" },
   { to: "/saved", label: "Saved" },
   { to: "/AddChannel", label: "Channels" },
   { to: "/settings", label: "Settings" },

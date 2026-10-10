@@ -10,6 +10,7 @@ interface Channel {
   thumbnail_url: string;
   url?: string;
 }
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function AddChannel() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -78,7 +79,7 @@ export function AddChannel() {
   async function handleRemoveChannel(channelId: string) {
     try {
       const response = await authFetch(
-        `http://localhost:5000/youtube/url/${channelId}`,
+        `${API_URL}/youtube/url/${channelId}`,
         {
           method: "DELETE",
         }
@@ -100,7 +101,7 @@ export function AddChannel() {
   async function loadChannels() {
     try {
       const response = await authFetch(
-        "http://localhost:5000/youtube/url/my-channels"
+        `${API_URL}/youtube/url/my-channels`
       );
 
       if (!response.ok) {
@@ -125,7 +126,7 @@ export function AddChannel() {
 
     try {
       const response = await authFetch(
-        `http://localhost:5000/youtube/url/search?q=${encodeURIComponent(
+        `${API_URL}/youtube/url/search?q=${encodeURIComponent(
           searchQuery.trim()
         )}`
       );
@@ -159,7 +160,7 @@ export function AddChannel() {
     setFollowingId(channelId);
 
     try {
-      const response = await authFetch("http://localhost:5000/youtube/url", {
+      const response = await authFetch(`${API_URL}/youtube/url`, {
   method: "POST",
   headers: {
     "Content-Type": "application/json",
@@ -193,7 +194,7 @@ export function AddChannel() {
 
     try {
       const response = await authFetch(
-        "http://localhost:5000/youtube/url",
+        `${API_URL}/youtube/url`,
         {
           method: "POST",
           headers: {
