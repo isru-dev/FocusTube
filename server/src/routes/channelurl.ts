@@ -281,4 +281,91 @@ router.delete('/:channelId', requireAuth, async (req: Request, res: Response) =>
   res.json({ success: true });
 });
 
+
+router.get(
+  "/videos/search",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const query = String(req.query.q ?? "").trim();
+
+      if (!query) {
+        return res.status(400).json({
+          error: "Search query is required",
+        });
+      }
+
+      if (query.length > 200) {
+        return res.status(400).json({
+          error: "Search query must be 200 characters or fewer",
+        });
+      }
+
+      const apiKey = process.env.YOUTUBE_API_KEY;
+
+      if (!apiKey) {
+        console.error("YOUTUBE_API_KEY is not configured");
+
+        return res.status(500).json({
+          error: "YouTube API is not configured",
+        });
+      }
+
+      const params = new URLSearchParams({
+        part: "snippet",
+        type: "video",
+        q: query,
+        maxResults: "20",
+        order: "relevance",
+        key: apiKey,
+      });
+
+      const youtubeResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?${params.toString()}`
+      );
+
+      const youtubeData = await youtubeResponse.json();
+
+      if (!youtubeResponse.ok) {
+        console.error("YouTube video search failed:", youtubeData);
+
+        return res.status(502).json({
+          error:
+            youtubeData.error?.message ??
+            "YouTube video search failed",
+        });
+      }
+
+      const videos = (youtubeData.items ?? [])
+        .filter((item: any) => item.id?.videoId)
+        .map((item: any) => {
+          const thumbnails = item.snippet?.thumbnails ?? {};
+
+          return {
+            id: item.id.videoId,
+            title: item.snippet?.title ?? "Untitled video",
+            thumbnail_url:
+              thumbnails.high?.url ??
+              thumbnails.medium?.url ??
+              thumbnails.default?.url ??
+              "",
+            channel_id: item.snippet?.channelId ?? "",
+            channel_name: item.snippet?.channelTitle ?? "",
+            published_at: item.snippet?.publishedAt ?? null,
+          };
+        });
+
+      return res.status(200).json({
+        videos,
+        nextPageToken: youtubeData.nextPageToken ?? null,
+        resultsCount: videos.length,
+      });
+    } catch (error) {
+      console.error("Error searching YouTube videos:", error);
+
+      return res.status(500).json({
+        error: "An unexpected error occurred while searching videos",
+      });
+    }
+  })
 export default router;
