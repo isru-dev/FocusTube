@@ -1,8 +1,7 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { authFetch } from "../lib/api";
-
 import { SideBar } from "./sidebar";
 import { MobileNav } from "./MobileNav";
 
@@ -18,7 +17,9 @@ interface Channel {
   thumbnail_url: string;
   videos: Video[];
 }
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 export function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export function Feed() {
     );
   }
 
-  async function handleSearch(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const query = searchQuery.trim();
@@ -75,6 +76,7 @@ export function Feed() {
 
     setSearching(true);
     setSearchError("");
+    setSearchResults([]);
 
     try {
       const response = await authFetch(
@@ -86,7 +88,6 @@ export function Feed() {
       }
 
       const data = await response.json();
-
       setSearchResults(data.videos ?? data);
     } catch (error) {
       console.error("Video search failed:", error);
@@ -115,9 +116,12 @@ export function Feed() {
     });
   }
 
+  const pageClass =
+    "flex min-h-screen bg-stone-100 text-stone-900 transition-colors dark:bg-stone-950 dark:text-stone-100";
+
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-stone-100 text-stone-900">
+      <div className={pageClass}>
         <SideBar />
 
         <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6">
@@ -127,10 +131,10 @@ export function Feed() {
             {[1, 2, 3, 4, 5, 6].map((item) => (
               <div
                 key={item}
-                className="animate-pulse rounded-lg bg-stone-200 p-4"
+                className="animate-pulse rounded-lg bg-stone-200 p-4 dark:bg-stone-800"
               >
-                <div className="mb-3 aspect-video rounded bg-stone-300" />
-                <div className="h-4 w-3/4 rounded bg-stone-300" />
+                <div className="mb-3 aspect-video rounded bg-stone-300 dark:bg-stone-700" />
+                <div className="h-4 w-3/4 rounded bg-stone-300 dark:bg-stone-700" />
               </div>
             ))}
           </div>
@@ -142,7 +146,7 @@ export function Feed() {
   }
 
   return (
-    <div className="flex min-h-screen bg-stone-100 text-stone-900">
+    <div className={pageClass}>
       <SideBar />
 
       <main className="min-w-0 flex-1 p-4 pb-24 sm:p-6">
@@ -154,7 +158,7 @@ export function Feed() {
                 setPlayingId(null);
                 setPlayingTitle("");
               }}
-              className="mb-4 rounded bg-stone-200 px-4 py-2 text-stone-900 transition hover:bg-stone-300"
+              className="mb-4 rounded-lg bg-stone-200 px-4 py-2 text-stone-900 transition hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
             >
               ← Back to feed
             </button>
@@ -178,11 +182,12 @@ export function Feed() {
             <header className="mb-8">
               <h1 className="text-3xl font-bold">Your Feed</h1>
 
-              <p className="mt-2 text-stone-600">
+              <p className="mt-2 text-stone-600 dark:text-stone-400">
                 Discover videos from YouTube and your followed creators.
               </p>
             </header>
 
+            {/* YouTube search */}
             <form
               onSubmit={handleSearch}
               className="mb-8 flex flex-col gap-3 sm:flex-row"
@@ -192,7 +197,7 @@ export function Feed() {
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder="Search all YouTube videos..."
-                className="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                className="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-200 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:placeholder-stone-500 dark:focus:ring-red-900"
               />
 
               <button
@@ -203,11 +208,11 @@ export function Feed() {
                 {searching ? "Searching..." : "Search"}
               </button>
 
-              {searchResults.length > 0 && (
+              {(searchResults.length > 0 || searchError) && (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="rounded-lg bg-stone-200 px-4 py-3 text-stone-900 transition hover:bg-stone-300"
+                  className="rounded-lg bg-stone-200 px-4 py-3 text-stone-900 transition hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-100 dark:hover:bg-stone-700"
                 >
                   Clear
                 </button>
@@ -215,16 +220,21 @@ export function Feed() {
             </form>
 
             {searchError && (
-              <p className="mb-6 rounded-lg bg-red-100 p-4 text-red-700">
+              <p className="mb-6 rounded-lg bg-red-100 p-4 text-red-700 dark:bg-red-950 dark:text-red-300">
                 {searchError}
               </p>
             )}
 
+            {searching && (
+              <p className="mb-6 text-stone-600 dark:text-stone-400">
+                Searching YouTube...
+              </p>
+            )}
+
+            {/* Search results */}
             {searchResults.length > 0 ? (
               <section className="mb-10">
-                <h2 className="mb-4 text-xl font-semibold">
-                  Search results
-                </h2>
+                <h2 className="mb-4 text-xl font-semibold">Search results</h2>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {searchResults.map((video) => (
@@ -232,7 +242,7 @@ export function Feed() {
                       key={video.id}
                       type="button"
                       onClick={() => handlePlayVideo(video)}
-                      className="overflow-hidden rounded-lg bg-white text-left shadow-sm transition hover:bg-stone-200"
+                      className="overflow-hidden rounded-lg border border-stone-200 bg-white text-left shadow-sm transition hover:bg-stone-100 dark:border-stone-800 dark:bg-stone-900 dark:hover:bg-stone-800"
                     >
                       <img
                         src={video.thumbnail_url}
@@ -241,7 +251,7 @@ export function Feed() {
                       />
 
                       <div className="p-3">
-                        <h3 className="line-clamp-2 font-medium text-stone-900">
+                        <h3 className="line-clamp-2 font-medium text-stone-900 dark:text-stone-100">
                           {video.title}
                         </h3>
                       </div>
@@ -250,23 +260,24 @@ export function Feed() {
                 </div>
               </section>
             ) : searchQuery.trim() && !searching && !searchError ? (
-              <p className="mb-8 text-stone-600">
+              <p className="mb-8 text-stone-600 dark:text-stone-400">
                 No results found. Try another search.
               </p>
             ) : null}
 
+            {/* Followed creators */}
             <section>
               <h2 className="mb-6 text-2xl font-bold">
                 Your followed creators
               </h2>
 
               {channels.length === 0 ? (
-                <div className="rounded-lg border border-stone-300 p-8 text-center">
+                <div className="rounded-lg border border-stone-300 p-8 text-center dark:border-stone-700 dark:bg-stone-900">
                   <h3 className="mb-2 text-xl font-semibold">
                     Your feed is empty
                   </h3>
 
-                  <p className="mb-5 text-stone-600">
+                  <p className="mb-5 text-stone-600 dark:text-stone-400">
                     Follow some YouTube channels to see their videos here.
                   </p>
 
@@ -285,7 +296,7 @@ export function Feed() {
                     return (
                       <section
                         key={channel.id}
-                        className="overflow-hidden rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+                        className="overflow-hidden rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900"
                       >
                         <button
                           type="button"
@@ -300,24 +311,24 @@ export function Feed() {
                           />
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-stone-900">
+                            <h3 className="font-semibold text-stone-900 dark:text-stone-100">
                               {channel.name}
                             </h3>
 
-                            <p className="text-sm text-stone-600">
+                            <p className="text-sm text-stone-600 dark:text-stone-400">
                               {channel.videos.length} videos
                             </p>
                           </div>
 
-                          <span className="text-sm font-medium text-stone-600">
+                          <span className="text-sm font-medium text-stone-600 dark:text-stone-400">
                             {isExpanded ? "Hide videos ▲" : "Show videos ▼"}
                           </span>
                         </button>
 
                         {isExpanded && (
-                          <div className="mt-5 border-t border-stone-200 pt-5">
+                          <div className="mt-5 border-t border-stone-200 pt-5 dark:border-stone-800">
                             {channel.videos.length === 0 ? (
-                              <p className="text-stone-600">
+                              <p className="text-stone-600 dark:text-stone-400">
                                 No videos available for this channel yet.
                               </p>
                             ) : (
@@ -327,7 +338,7 @@ export function Feed() {
                                     key={video.id}
                                     type="button"
                                     onClick={() => handlePlayVideo(video)}
-                                    className="overflow-hidden rounded-lg bg-stone-100 text-left transition hover:bg-stone-200"
+                                    className="overflow-hidden rounded-lg bg-stone-100 text-left transition hover:bg-stone-200 dark:bg-stone-800 dark:hover:bg-stone-700"
                                   >
                                     <img
                                       src={video.thumbnail_url}
@@ -336,7 +347,7 @@ export function Feed() {
                                     />
 
                                     <div className="p-3">
-                                      <h4 className="line-clamp-2 font-medium text-stone-900">
+                                      <h4 className="line-clamp-2 font-medium text-stone-900 dark:text-stone-100">
                                         {video.title}
                                       </h4>
                                     </div>
@@ -360,3 +371,4 @@ export function Feed() {
     </div>
   );
 }
+
