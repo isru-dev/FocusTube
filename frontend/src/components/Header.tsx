@@ -1,29 +1,43 @@
+
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function Header() {
   return (
-    <header className="border-b border-stone-200 bg-stone-50/80 backdrop-blur-md dark:border-stone-800 dark:bg-stone-900/80">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <div className="text-sm font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-          FOCUSTUBE
-        </div>
+    <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-stone-50/90 backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/90">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
 
-        <nav className="flex items-center gap-3">
+        {/* Logo */}
+        <Link
+          to="/"
+          className="text-base font-bold tracking-tight text-stone-900 dark:text-stone-100"
+        >
+          FOCUS<span className="text-amber-700 dark:text-amber-500">TUBE</span>
+        </Link>
+
+        {/* Navigation */}
+        <nav className="flex items-center gap-2 sm:gap-4">
           <Link
             to="/login"
-            className="px-4 py-2 text-sm font-medium text-stone-600 transition hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100"
+            className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-200/70 hover:text-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white"
           >
             Login
           </Link>
 
           <Link
             to="/register"
-            className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-medium text-stone-50 transition hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700"
+            className="rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700"
           >
-            Register
+            Get started
           </Link>
+
+          {/* Theme toggle */}
+          <div className="ml-1 border-l border-stone-200 pl-3 dark:border-stone-700">
+            <ThemeToggle />
+          </div>
         </nav>
       </div>
     </header>
   );
 }
+

@@ -1,25 +1,27 @@
+
 import { Header } from "../components/Header";
 import { Link } from "react-router-dom";
 
 export function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-stone-100">
+    <div className="flex min-h-screen flex-col bg-stone-100 transition-colors dark:bg-stone-950">
       <Header />
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="mx-auto flex min-h-[80vh] max-w-5xl flex-col items-center justify-center px-6 text-center">
-          <div className="mb-6 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+        <section className="mx-auto flex min-h-[80vh] max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
+          <div className="mb-6 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300">
             Your attention. Your choice.
           </div>
-          <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-stone-900 sm:text-6xl">
+
+          <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 sm:text-6xl">
             Watch what you came for.
-            <span className="block text-stone-500">
+            <span className="block text-stone-500 dark:text-stone-400">
               Nothing else.
             </span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600">
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600 dark:text-stone-300">
             FocusTube lets you follow the channels you choose and watch
             their videos without recommendations, endless feeds, or
             algorithmic distractions.
@@ -28,7 +30,7 @@ export function Home() {
           <div className="mt-10">
             <Link
               to="/register"
-              className="inline-flex rounded-lg bg-amber-700 px-6 py-3 text-sm font-medium text-stone-50 transition hover:bg-amber-800 shadow-sm"
+              className="inline-flex rounded-lg bg-amber-700 px-6 py-3 text-sm font-medium text-stone-50 shadow-sm transition hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700"
             >
               Get started
             </Link>
@@ -36,18 +38,18 @@ export function Home() {
         </section>
 
         {/* Problem */}
-        <section className="border-y border-stone-200 bg-stone-200/30">
+        <section className="border-y border-stone-200 bg-stone-200/30 dark:border-stone-800 dark:bg-stone-900/50">
           <div className="mx-auto max-w-5xl px-6 py-24">
             <div className="max-w-2xl">
-              <p className="text-sm font-medium uppercase tracking-wider text-amber-700">
+              <p className="text-sm font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
                 The problem
               </p>
 
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 sm:text-4xl">
                 You came to watch one video.
               </h2>
 
-              <p className="mt-5 text-lg leading-8 text-stone-600">
+              <p className="mt-5 text-lg leading-8 text-stone-600 dark:text-stone-300">
                 Then another video appeared. Then a Short. Then another
                 recommendation. Before you know it, the reason you opened
                 YouTube is gone.
@@ -79,11 +81,11 @@ export function Home() {
         {/* How it works */}
         <section className="mx-auto max-w-5xl px-6 py-24">
           <div className="max-w-2xl">
-            <p className="text-sm font-medium uppercase tracking-wider text-amber-700">
+            <p className="text-sm font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
               How it works
             </p>
 
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 sm:text-4xl">
               You control the feed.
             </h2>
           </div>
@@ -110,20 +112,20 @@ export function Home() {
         </section>
 
         {/* Final CTA */}
-        <section className="border-t border-stone-200 bg-stone-200/20">
+        <section className="border-t border-stone-200 bg-stone-200/20 dark:border-stone-800 dark:bg-stone-900/50">
           <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-            <h2 className="text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+            <h2 className="text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 sm:text-4xl">
               Take back control of your feed.
             </h2>
 
-            <p className="mx-auto mt-5 max-w-xl text-lg text-stone-600">
+            <p className="mx-auto mt-5 max-w-xl text-lg text-stone-600 dark:text-stone-300">
               Follow the channels you trust. Watch what they publish.
               Nothing more.
             </p>
 
             <Link
               to="/register"
-              className="mt-8 inline-flex rounded-lg bg-amber-700 px-7 py-3 text-sm font-medium text-stone-50 transition hover:bg-amber-800 shadow-sm"
+              className="mt-8 inline-flex rounded-lg bg-amber-700 px-7 py-3 text-sm font-medium text-stone-50 shadow-sm transition hover:bg-amber-800 dark:bg-amber-600 dark:hover:bg-amber-700"
             >
               Get started
             </Link>
@@ -144,16 +146,23 @@ function Feature({
   description: string;
 }) {
   return (
-    <div className="rounded-xl border border-stone-200 bg-stone-50 p-6 shadow-sm">
-      <span className="text-sm font-medium text-amber-700">{number}</span>
-      <h3 className="mt-8 text-lg font-semibold text-stone-900">{title}</h3>
-      <p className="mt-3 text-sm leading-6 text-stone-600">{description}</p>
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-6 shadow-sm transition-colors dark:border-stone-800 dark:bg-stone-900">
+      <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+        {number}
+      </span>
+
+      <h3 className="mt-8 text-lg font-semibold text-stone-900 dark:text-stone-100">
+        {title}
+      </h3>
+
+      <p className="mt-3 text-sm leading-6 text-stone-600 dark:text-stone-300">
+        {description}
+      </p>
     </div>
   );
 }
 
-function Step
-({
+function Step({
   number,
   title,
   description,
@@ -164,9 +173,18 @@ function Step
 }) {
   return (
     <div>
-      <span className="text-sm font-medium text-amber-700">{number}</span>
-      <h3 className="mt-5 text-xl font-semibold text-stone-900">{title}</h3>
-      <p className="mt-3 leading-7 text-stone-600">{description}</p>
+      <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
+        {number}
+      </span>
+
+      <h3 className="mt-5 text-xl font-semibold text-stone-900 dark:text-stone-100">
+        {title}
+      </h3>
+
+      <p className="mt-3 leading-7 text-stone-600 dark:text-stone-300">
+        {description}
+      </p>
     </div>
   );
 }
+
