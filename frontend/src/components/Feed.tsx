@@ -5,6 +5,9 @@ import { authFetch } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./sidebar";
 import { MobileNav } from "./MobileNav";
+import toast from "react-hot-toast";
+import { Save, Trash2 } from 'lucide-react';
+import { BookmarkCheck, SaveAll, SavePlus, Bookmark } from 'lucide-react';
 
 interface Video {
   id: string;
@@ -222,6 +225,7 @@ export function Feed() {
         }
 
         setSaveMessage("Video saved successfully.");
+        toast.success("Video saved successfully")
       }
     } catch (error) {
       console.error("Could not update saved video:", error);
@@ -286,7 +290,7 @@ export function Feed() {
                 : "border-stone-300 text-stone-700 hover:bg-stone-100 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
             }`}
           >
-            {isSaving ? "..." : isSaved ? "🔖 Saved" : "＋ Save"}
+            {isSaving ? "..." : isSaved ? <BookmarkCheck /> : <Save />}
           </button>
         </div>
       </article>
