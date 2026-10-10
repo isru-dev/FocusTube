@@ -4,6 +4,8 @@ import { Login } from "./pages/Login.tsx";
 import { SideBar } from "./components/sidebar.tsx";
 import {ProtectedRoute} from './lib/ProtectedRoute.tsx'
 import { AddChannel } from "./components/AddChannel.tsx";
+import { Toaster } from 'react-hot-toast';
+
 import { Feed } from "./components/Feed.tsx";
 import { Home } from "./pages/Home.tsx";
 import { Saved } from "./pages/Saved.tsx";
@@ -44,6 +46,8 @@ function App() {
           } />
         <Route path="/" element={<Home />} />
       </Routes>
+
+      <Toaster /> 
     </BrowserRouter>
   );
 }

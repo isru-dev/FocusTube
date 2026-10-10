@@ -4,6 +4,7 @@ import { SideBar } from "./sidebar";
 import { authFetch } from "../lib/api";
 import { MobileNav } from "./MobileNav";
 import { supabase } from "../lib/supabaseClient";
+import toast from 'react-hot-toast';
 
 interface Channel {
   id: string;
@@ -106,10 +107,13 @@ export function AddChannel() {
       if (!response.ok) {
         throw new Error("Failed to remove channel");
       }
-
+       //toast 
+     toast.success('Successfully Removed the channel ')
       await loadChannels();
     } catch (error) {
       console.error(error);
+      toast.error("ERROR REMOVING THE CHANNEL")
+
     }
   }
 
@@ -171,10 +175,13 @@ export function AddChannel() {
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to follow channel");
       }
-
+       //toast
+       toast.success('Successfully Followed the channel ')
       await loadChannels();
     } catch (error) {
       console.error(error);
+    toast.error("ERROR FOLLOWING THE CHANNEL")
+
     } finally {
       setFollowingId(null);
     }
@@ -208,7 +215,8 @@ export function AddChannel() {
 
       setUrl("");
       setUrlSuccess("Channel added successfully.");
-
+       //toast
+       toast.success(' the channel Successfully added ')
       await loadChannels();
     } catch (error) {
       setUrlError(
@@ -216,6 +224,8 @@ export function AddChannel() {
           ? error.message
           : "Something went wrong. Please try again."
       );
+      toast.error("ERROR ADDING  THE CHANNEL")
+
     } finally {
       setAddingUrl(false);
     }
