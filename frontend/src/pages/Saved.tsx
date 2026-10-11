@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { MobileNav } from "../components/MobileNav";
-import { SideBar } from "../components/sidebar";
+import { SideBar } from "../components/SideBar";
 import toast from "react-hot-toast";
 import { Trash2, Play, Bookmark } from "lucide-react";
 

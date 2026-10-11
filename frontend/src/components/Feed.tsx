@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { authFetch } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
-import { SideBar } from "./sidebar";
+import { SideBar } from "./SideBar";
 import { MobileNav } from "./MobileNav";
 import toast from "react-hot-toast";
 import { Save } from 'lucide-react';
