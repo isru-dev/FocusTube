@@ -19,7 +19,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 console.log('Service key loaded:', process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10));
 
-app.get('/api/me', requireAuth, (req, res) => res.json({ userId: req.userId }))
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
