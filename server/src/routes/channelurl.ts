@@ -264,6 +264,172 @@ router.get('/my-channels', requireAuth, async (req: Request, res: Response) => {
   res.json(channels);
 });
 
+router.get(
+  "/:channelId/videos",
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const channelId = req.params.channelId;
+      const pageToken = String(req.query.pageToken ?? "").trim();
+      const apiKey = process.env.YOUTUBE_API_KEY;
+
+      if (!apiKey) {
+        return res.status(500).json({
+          error: "YouTube API is not configured",
+        });
+      }
+
+      // Make sure this user follows this channel.
+      const { data: link, error: linkError } = await supabaseAdmin
+        .from("user_channels")
+        .select("channel_id")
+        .eq("user_id", req.userId)
+        .eq("channel_id", channelId)
+        .maybeSingle();
+
+      if (linkError) {
+        return res.status(500).json({ error: linkError.message });
+      }
+
+      if (!link) {
+        return res.status(404).json({
+          error: "Followed channel not found",
+        });
+      }
+
+      // Find the creator's uploads playlist.
+      const channelParams = new URLSearchParams({
+        part: "contentDetails",
+        id: channelId,
+        key: apiKey,
+      });
+
+      const channelResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?${channelParams}`
+      );
+
+      const channelData = await channelResponse.json();
+
+      if (!channelResponse.ok) {
+        return res.status(502).json({
+          error: channelData.error?.message ?? "Could not find channel",
+        });
+      }
+
+      const uploadsPlaylistId =
+        channelData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+
+      if (!uploadsPlaylistId) {
+        return res.status(404).json({
+          error: "Could not find this creator's uploads",
+        });
+      }
+
+      // On the first request, skip the initial 10 videos already in the feed.
+      let tokenToUse = pageToken;
+
+      if (!tokenToUse) {
+        const firstPageParams = new URLSearchParams({
+          part: "snippet",
+          playlistId: uploadsPlaylistId,
+          maxResults: "10",
+          key: apiKey,
+        });
+
+        const firstPageResponse = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?${firstPageParams}`
+        );
+
+        const firstPageData = await firstPageResponse.json();
+
+        if (!firstPageResponse.ok) {
+          return res.status(502).json({
+            error:
+              firstPageData.error?.message ??
+              "Could not load creator videos",
+          });
+        }
+
+        tokenToUse = firstPageData.nextPageToken ?? "";
+      }
+
+      if (!tokenToUse) {
+        return res.json({
+          videos: [],
+          nextPageToken: null,
+        });
+      }
+
+      // Fetch the next 10 videos.
+      const videosParams = new URLSearchParams({
+        part: "snippet",
+        playlistId: uploadsPlaylistId,
+        maxResults: "10",
+        pageToken: tokenToUse,
+        key: apiKey,
+      });
+
+      const videosResponse = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?${videosParams}`
+      );
+
+      const videosData = await videosResponse.json();
+
+      if (!videosResponse.ok) {
+        return res.status(502).json({
+          error:
+            videosData.error?.message ??
+            "Could not load more creator videos",
+        });
+      }
+
+      const videos = (videosData.items ?? [])
+        .filter((item: any) => item.snippet?.resourceId?.videoId)
+        .map((item: any) => {
+          const snippet = item.snippet;
+          const thumbnails = snippet.thumbnails ?? {};
+
+          return {
+            id: snippet.resourceId.videoId,
+            channel_id: channelId,
+            title: snippet.title ?? "Untitled video",
+            thumbnail_url:
+              thumbnails.maxres?.url ??
+              thumbnails.standard?.url ??
+              thumbnails.high?.url ??
+              thumbnails.medium?.url ??
+              thumbnails.default?.url ??
+              "",
+            published_at: snippet.publishedAt ?? null,
+          };
+        });
+
+      if (videos.length > 0) {
+        const { error: saveError } = await supabaseAdmin
+          .from("videos")
+          .upsert(videos);
+
+        if (saveError) {
+          return res.status(500).json({
+            error: saveError.message,
+          });
+        }
+      }
+
+      return res.json({
+        videos,
+        nextPageToken: videosData.nextPageToken ?? null,
+      });
+    } catch (error) {
+      console.error("Load more creator videos failed:", error);
+
+      return res.status(500).json({
+        error: "Could not load more creator videos",
+      });
+    }
+  }
+);
+
 // 4. DELETE remove channel link for user
 router.delete('/:channelId', requireAuth, async (req: Request, res: Response) => {
   const { channelId } = req.params;
@@ -376,4 +542,6 @@ if (pageToken) {
       });
     }
   })
+
+  
 export default router;

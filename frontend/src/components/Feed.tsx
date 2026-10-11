@@ -5,8 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./SideBar";
 import { MobileNav } from "./MobileNav";
 import toast from "react-hot-toast";
-import { Save } from "lucide-react";
-import { BookmarkCheck } from "lucide-react";
+import { Save, BookmarkCheck } from "lucide-react";
 
 interface Video {
   id: string;
@@ -24,23 +23,36 @@ interface Channel {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function Feed() {
+  // Channels + playback
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [expandedChannels, setExpandedChannels] = useState<string[]>([]);
+
+  // Global search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Video[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
+  // Saved videos
   const [savedVideoIds, setSavedVideoIds] = useState<string[]>([]);
   const [savingVideoIds, setSavingVideoIds] = useState<string[]>([]);
   const [saveError, setSaveError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
+
+  // Per-channel pagination:
+  //   undefined -> never loaded more (show button if channel has 10+ videos)
+  //   string    -> another page exists
+  //   null      -> no more pages (hide button)
+  const [channelPageTokens, setChannelPageTokens] = useState<
+    Record<string, string | null>
+  >({});
+  const [loadingMoreChannels, setLoadingMoreChannels] = useState<string[]>([]);
+
   const loadSavedVideos = useCallback(async () => {
     try {
       const {
@@ -117,6 +129,7 @@ export function Feed() {
       setSearchError("");
       return;
     }
+
     setSearching(true);
     setSearchError("");
     setSearchResults([]);
@@ -146,53 +159,53 @@ export function Feed() {
     }
   }
 
-async function handleLoadMore() {
-  if (!nextPageToken || loadingMore || !searchQuery.trim()) {
-    return;
-  }
-
-  setLoadingMore(true);
-  setSearchError("");
-
-  try {
-    const params = new URLSearchParams({
-      q: searchQuery.trim(),
-      pageToken: nextPageToken,
-    });
-
-    const response = await authFetch(
-      `${API_URL}/youtube/url/videos/search?${params.toString()}`
-    );
-
-    if (!response.ok) {
-      throw new Error("Could not load more videos. Please try again.");
+  async function handleLoadMore() {
+    if (!nextPageToken || loadingMore || !searchQuery.trim()) {
+      return;
     }
 
-    const data = await response.json();
-    const newVideos: Video[] = data.videos ?? [];
+    setLoadingMore(true);
+    setSearchError("");
 
-    setSearchResults((current) => {
-      const existingIds = new Set(current.map((video) => video.id));
-      const uniqueNewVideos = newVideos.filter(
-        (video) => !existingIds.has(video.id)
+    try {
+      const params = new URLSearchParams({
+        q: searchQuery.trim(),
+        pageToken: nextPageToken,
+      });
+
+      const response = await authFetch(
+        `${API_URL}/youtube/url/videos/search?${params.toString()}`,
       );
 
-      return [...current, ...uniqueNewVideos];
-    });
+      if (!response.ok) {
+        throw new Error("Could not load more videos. Please try again.");
+      }
 
-    setNextPageToken(data.nextPageToken ?? null);
-  } catch (error) {
-    console.error("Failed to load more videos:", error);
+      const data = await response.json();
+      const newVideos: Video[] = data.videos ?? [];
 
-    setSearchError(
-      error instanceof Error
-        ? error.message
-        : "Could not load more videos. Please try again."
-    );
-  } finally {
-    setLoadingMore(false);
+      setSearchResults((current) => {
+        const existingIds = new Set(current.map((video) => video.id));
+        const uniqueNewVideos = newVideos.filter(
+          (video) => !existingIds.has(video.id),
+        );
+
+        return [...current, ...uniqueNewVideos];
+      });
+
+      setNextPageToken(data.nextPageToken ?? null);
+    } catch (error) {
+      console.error("Failed to load more videos:", error);
+
+      setSearchError(
+        error instanceof Error
+          ? error.message
+          : "Could not load more videos. Please try again.",
+      );
+    } finally {
+      setLoadingMore(false);
+    }
   }
-}
 
   function clearSearch() {
     setSearchQuery("");
@@ -278,6 +291,69 @@ async function handleLoadMore() {
       );
     } finally {
       setSavingVideoIds((current) => current.filter((id) => id !== video.id));
+    }
+  }
+
+  async function handleLoadMoreChannelVideos(channel: Channel) {
+    const channelId = channel.id;
+
+    if (loadingMoreChannels.includes(channelId)) return;
+
+    setLoadingMoreChannels((current) => [...current, channelId]);
+
+    try {
+      const params = new URLSearchParams();
+      const pageToken = channelPageTokens[channelId];
+
+      if (pageToken) {
+        params.set("pageToken", pageToken);
+      }
+
+      const query = params.toString();
+      const url = `${API_URL}/youtube/url/${encodeURIComponent(
+        channelId,
+      )}/videos${query ? `?${query}` : ""}`;
+
+      const response = await authFetch(url);
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Could not load more videos.");
+      }
+
+      const data = await response.json();
+      const newVideos: Video[] = data.videos ?? [];
+
+      setChannels((current) =>
+        current.map((item) => {
+          if (item.id !== channelId) return item;
+
+          const existingIds = new Set(item.videos.map((video) => video.id));
+          const uniqueVideos = newVideos.filter(
+            (video) => !existingIds.has(video.id),
+          );
+
+          return {
+            ...item,
+            videos: [...item.videos, ...uniqueVideos],
+          };
+        }),
+      );
+
+      setChannelPageTokens((current) => ({
+        ...current,
+        [channelId]: data.nextPageToken ?? null,
+      }));
+    } catch (error) {
+      console.error("Could not load more creator videos:", error);
+
+      toast.error(
+        error instanceof Error ? error.message : "Could not load more videos.",
+      );
+    } finally {
+      setLoadingMoreChannels((current) =>
+        current.filter((id) => id !== channelId),
+      );
     }
   }
 
@@ -475,20 +551,21 @@ async function handleLoadMore() {
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {searchResults.map((video) => renderVideoCard(video))}
                 </div>
-                
-{nextPageToken && (
-  <div className="mt-6 flex justify-center">
-    <button
-      type="button"
-      onClick={() => void handleLoadMore()}
-      disabled={loadingMore || searching}
-      className="rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      {loadingMore ? "Loading more videos..." : "Load More Videos"}
-    </button>
-  </div>
-)}
 
+                {nextPageToken && (
+                  <div className="mt-6 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => void handleLoadMore()}
+                      disabled={loadingMore || searching}
+                      className="rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {loadingMore
+                        ? "Loading more videos..."
+                        : "Load More Videos"}
+                    </button>
+                  </div>
+                )}
               </section>
             ) : searchQuery.trim() && !searching && !searchError ? (
               <p className="mb-8 text-stone-600 dark:text-stone-400">
@@ -522,6 +599,9 @@ async function handleLoadMore() {
                 <div className="space-y-4">
                   {channels.map((channel) => {
                     const isExpanded = expandedChannels.includes(channel.id);
+                    const hasMoreVideos =
+                      channelPageTokens[channel.id] !== null &&
+                      channel.videos.length >= 10;
 
                     return (
                       <section
@@ -559,11 +639,34 @@ async function handleLoadMore() {
                                 No videos available for this channel yet.
                               </p>
                             ) : (
-                              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                                {channel.videos.map((video) =>
-                                  renderVideoCard(video),
+                              <>
+                                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                                  {channel.videos.map((video) =>
+                                    renderVideoCard(video),
+                                  )}
+                                </div>
+
+                                {hasMoreVideos && (
+                                  <div className="mt-6 flex justify-center">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        void handleLoadMoreChannelVideos(
+                                          channel,
+                                        )
+                                      }
+                                      disabled={loadingMoreChannels.includes(
+                                        channel.id,
+                                      )}
+                                      className="rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {loadingMoreChannels.includes(channel.id)
+                                        ? "Loading videos..."
+                                        : "Load More Videos"}
+                                    </button>
+                                  </div>
                                 )}
-                              </div>
+                              </>
                             )}
                           </div>
                         )}
