@@ -2,8 +2,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import channelurl from "./src/routes/channelurl.js";
-
+import channelurl from "./src/routes/channelurl.ts";
 dotenv.config();
 
 const app = express();
