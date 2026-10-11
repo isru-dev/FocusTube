@@ -1,6 +1,6 @@
 
 import { useEffect, useState, type FormEvent } from "react";
-import { SideBar } from "./sidebar";
+import { SideBar } from "./SideBar";
 import { authFetch } from "../lib/api";
 import { MobileNav } from "./MobileNav";
 import { supabase } from "../lib/supabaseClient";

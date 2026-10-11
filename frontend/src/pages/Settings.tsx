@@ -3,15 +3,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { MobileNav } from "../components/MobileNav";
-import { SideBar } from "../components/sidebar";
+import { SideBar } from "../components/SideBar";
 import { supabase } from "../lib/supabaseClient";
 import { useTheme } from "../components/ThemeProvider";
 
 export function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-
-  const [user, setUser] = useState(null);
+const [user, setUser] = useState<User | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
 

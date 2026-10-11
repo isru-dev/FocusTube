@@ -6,8 +6,8 @@ import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./sidebar";
 import { MobileNav } from "./MobileNav";
 import toast from "react-hot-toast";
-import { Save, Trash2 } from 'lucide-react';
-import { BookmarkCheck, SaveAll, SavePlus, Bookmark } from 'lucide-react';
+import { Save } from 'lucide-react';
+import { BookmarkCheck } from 'lucide-react';
 
 interface Video {
   id: string;
