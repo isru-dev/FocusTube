@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { authFetch } from "../lib/api";
@@ -6,8 +5,8 @@ import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./SideBar";
 import { MobileNav } from "./MobileNav";
 import toast from "react-hot-toast";
-import { Save } from 'lucide-react';
-import { BookmarkCheck } from 'lucide-react';
+import { Save } from "lucide-react";
+import { BookmarkCheck } from "lucide-react";
 
 interface Video {
   id: string;
@@ -22,8 +21,7 @@ interface Channel {
   videos: Video[];
 }
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function Feed() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -41,7 +39,8 @@ export function Feed() {
   const [savingVideoIds, setSavingVideoIds] = useState<string[]>([]);
   const [saveError, setSaveError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
-
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const loadSavedVideos = useCallback(async () => {
     try {
       const {
@@ -74,9 +73,7 @@ export function Feed() {
 
     async function loadChannels() {
       try {
-        const response = await authFetch(
-          `${API_URL}/youtube/url/my-channels`
-        );
+        const response = await authFetch(`${API_URL}/youtube/url/my-channels`);
 
         if (!response.ok) {
           throw new Error("Failed to load channels");
@@ -106,7 +103,7 @@ export function Feed() {
     setExpandedChannels((current) =>
       current.includes(channelId)
         ? current.filter((id) => id !== channelId)
-        : [...current, channelId]
+        : [...current, channelId],
     );
   }
 
@@ -120,14 +117,14 @@ export function Feed() {
       setSearchError("");
       return;
     }
-
     setSearching(true);
     setSearchError("");
     setSearchResults([]);
+    setNextPageToken(null);
 
     try {
       const response = await authFetch(
-        `${API_URL}/youtube/url/videos/search?q=${encodeURIComponent(query)}`
+        `${API_URL}/youtube/url/videos/search?q=${encodeURIComponent(query)}`,
       );
 
       if (!response.ok) {
@@ -135,11 +132,13 @@ export function Feed() {
       }
 
       const data = await response.json();
+
       setSearchResults(data.videos ?? data);
+      setNextPageToken(data.nextPageToken ?? null);
     } catch (error) {
       console.error("Video search failed:", error);
       setSearchError(
-        "Could not search videos. Check your backend and try again."
+        "Could not search videos. Check your backend and try again.",
       );
       setSearchResults([]);
     } finally {
@@ -147,10 +146,59 @@ export function Feed() {
     }
   }
 
+async function handleLoadMore() {
+  if (!nextPageToken || loadingMore || !searchQuery.trim()) {
+    return;
+  }
+
+  setLoadingMore(true);
+  setSearchError("");
+
+  try {
+    const params = new URLSearchParams({
+      q: searchQuery.trim(),
+      pageToken: nextPageToken,
+    });
+
+    const response = await authFetch(
+      `${API_URL}/youtube/url/videos/search?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error("Could not load more videos. Please try again.");
+    }
+
+    const data = await response.json();
+    const newVideos: Video[] = data.videos ?? [];
+
+    setSearchResults((current) => {
+      const existingIds = new Set(current.map((video) => video.id));
+      const uniqueNewVideos = newVideos.filter(
+        (video) => !existingIds.has(video.id)
+      );
+
+      return [...current, ...uniqueNewVideos];
+    });
+
+    setNextPageToken(data.nextPageToken ?? null);
+  } catch (error) {
+    console.error("Failed to load more videos:", error);
+
+    setSearchError(
+      error instanceof Error
+        ? error.message
+        : "Could not load more videos. Please try again."
+    );
+  } finally {
+    setLoadingMore(false);
+  }
+}
+
   function clearSearch() {
     setSearchQuery("");
     setSearchResults([]);
     setSearchError("");
+    setNextPageToken(null);
   }
 
   function handlePlayVideo(video: Video) {
@@ -194,19 +242,15 @@ export function Feed() {
 
         if (error) throw error;
 
-        setSavedVideoIds((current) =>
-          current.filter((id) => id !== video.id)
-        );
+        setSavedVideoIds((current) => current.filter((id) => id !== video.id));
         setSaveMessage("Video removed from your saved videos.");
       } else {
-        const { error } = await supabase
-          .from("saved_videos")
-          .insert({
-            user_id: user.id,
-            video_id: video.id,
-            title: video.title,
-            thumbnail_url: video.thumbnail_url || null,
-          });
+        const { error } = await supabase.from("saved_videos").insert({
+          user_id: user.id,
+          video_id: video.id,
+          title: video.title,
+          thumbnail_url: video.thumbnail_url || null,
+        });
 
         if (error) {
           // Handle a duplicate gracefully in case another request
@@ -218,26 +262,22 @@ export function Feed() {
           }
         } else {
           setSavedVideoIds((current) =>
-            current.includes(video.id)
-              ? current
-              : [...current, video.id]
+            current.includes(video.id) ? current : [...current, video.id],
           );
         }
 
         setSaveMessage("Video saved successfully.");
-        toast.success("Video saved successfully")
+        toast.success("Video saved successfully");
       }
     } catch (error) {
       console.error("Could not update saved video:", error);
       setSaveError(
         error instanceof Error
           ? error.message
-          : "Could not update the saved video. Please try again."
+          : "Could not update the saved video. Please try again.",
       );
     } finally {
-      setSavingVideoIds((current) =>
-        current.filter((id) => id !== video.id)
-      );
+      setSavingVideoIds((current) => current.filter((id) => id !== video.id));
     }
   }
 
@@ -430,13 +470,25 @@ export function Feed() {
 
             {searchResults.length > 0 ? (
               <section className="mb-10">
-                <h2 className="mb-4 text-xl font-semibold">
-                  Search results
-                </h2>
+                <h2 className="mb-4 text-xl font-semibold">Search results</h2>
 
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {searchResults.map((video) => renderVideoCard(video))}
                 </div>
+                
+{nextPageToken && (
+  <div className="mt-6 flex justify-center">
+    <button
+      type="button"
+      onClick={() => void handleLoadMore()}
+      disabled={loadingMore || searching}
+      className="rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {loadingMore ? "Loading more videos..." : "Load More Videos"}
+    </button>
+  </div>
+)}
+
               </section>
             ) : searchQuery.trim() && !searching && !searchError ? (
               <p className="mb-8 text-stone-600 dark:text-stone-400">
@@ -489,9 +541,7 @@ export function Feed() {
                           />
 
                           <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold">
-                              {channel.name}
-                            </h3>
+                            <h3 className="font-semibold">{channel.name}</h3>
                             <p className="text-sm text-stone-600 dark:text-stone-400">
                               {channel.videos.length} videos
                             </p>
@@ -511,7 +561,7 @@ export function Feed() {
                             ) : (
                               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                                 {channel.videos.map((video) =>
-                                  renderVideoCard(video)
+                                  renderVideoCard(video),
                                 )}
                               </div>
                             )}

@@ -311,14 +311,22 @@ router.get(
         });
       }
 
-      const params = new URLSearchParams({
-        part: "snippet",
-        type: "video",
-        q: query,
-        maxResults: "20",
-        order: "relevance",
-        key: apiKey,
-      });
+      
+const pageToken = String(req.query.pageToken ?? "").trim();
+
+const params = new URLSearchParams({
+  part: "snippet",
+  type: "video",
+  q: query,
+  maxResults: "20",
+  order: "relevance",
+  key: apiKey,
+});
+
+if (pageToken) {
+  params.set("pageToken", pageToken);
+}
+
 
       const youtubeResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/search?${params.toString()}`
