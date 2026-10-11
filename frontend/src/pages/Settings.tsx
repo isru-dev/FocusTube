@@ -1,6 +1,5 @@
-
-
 import { useState, useEffect } from "react";
+import type { User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { MobileNav } from "../components/MobileNav";
 import { SideBar } from "../components/SideBar";
@@ -10,27 +9,53 @@ import { useTheme } from "../components/ThemeProvider";
 export function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-const [user, setUser] = useState<User | null>(null);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let active = true;
+
     async function loadProfile() {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
 
-      if (error) {
-        setError("Could not load your profile.");
-        return;
+        if (!active) return;
+
+        if (error) {
+          console.error("Supabase getUser error:", error.message);
+          setError(error.message);
+          return;
+        }
+
+        if (!user) {
+          setError("You are not signed in. Please log in again.");
+          navigate("/login", { replace: true });
+          return;
+        }
+
+        setUser(user);
+      } catch (err) {
+        if (!active) return;
+
+        console.error("Profile loading error:", err);
+        setError("Could not load your profile. Please try again.");
+      } finally {
+        if (active) setLoading(false);
       }
-
-      setUser(user);
     }
 
     loadProfile();
-  }, []);
+
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -44,7 +69,7 @@ const [user, setUser] = useState<User | null>(null);
       return;
     }
 
-    navigate("/Login", { replace: true });
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -62,13 +87,11 @@ const [user, setUser] = useState<User | null>(null);
             </p>
           </header>
 
-          {/* Profile */}
           <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900 sm:p-6">
             <div className="mb-5 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 <span className="text-xl">👤</span>
               </div>
-
               <div>
                 <h2 className="text-base font-semibold">Profile</h2>
                 <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
@@ -77,28 +100,35 @@ const [user, setUser] = useState<User | null>(null);
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                  Email address
-                </p>
-                <p className="mt-1 break-all text-sm">
-                  {user?.email || "Loading profile..."}
-                </p>
-              </div>
+            {loading ? (
+              <p className="text-sm text-stone-500">Loading profile...</p>
+            ) : user ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                    Email address
+                  </p>
+                  <p className="mt-1 break-all text-sm">
+                    {user.email || "No email available"}
+                  </p>
+                </div>
 
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                  User ID
-                </p>
-                <p className="mt-1 break-all text-sm text-stone-600 dark:text-stone-300">
-                  {user?.id || "—"}
-                </p>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
+                    User ID
+                  </p>
+                  <p className="mt-1 break-all text-sm text-stone-600 dark:text-stone-300">
+                    {user.id}
+                  </p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {error || "No signed-in user was found."}
+              </p>
+            )}
           </section>
 
-          {/* Appearance */}
           <section className="mb-6 rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
@@ -107,7 +137,6 @@ const [user, setUser] = useState<User | null>(null);
                     {theme === "dark" ? "🌙" : "☀️"}
                   </span>
                 </div>
-
                 <div>
                   <h2 className="text-base font-semibold">Appearance</h2>
                   <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
@@ -126,7 +155,6 @@ const [user, setUser] = useState<User | null>(null);
             </div>
           </section>
 
-          {/* Logout */}
           <section className="rounded-xl border border-red-200 bg-white p-5 dark:border-red-950 dark:bg-stone-900 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -148,7 +176,7 @@ const [user, setUser] = useState<User | null>(null);
               </button>
             </div>
 
-            {error && (
+            {error && user && (
               <p className="mt-4 text-sm text-red-600 dark:text-red-400">
                 {error}
               </p>

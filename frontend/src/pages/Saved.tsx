@@ -69,7 +69,10 @@ export function Saved() {
   }, []);
 
   useEffect(() => {
-    void loadSavedVideos();
+    async function savedata(){
+        await void loadSavedVideos();
+    }
+    savedata();
   }, [loadSavedVideos]);
 
   async function removeSavedVideo(video: SavedVideo) {
