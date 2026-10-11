@@ -121,16 +121,15 @@ export function Saved() {
     }
   }
 
-  const pageClass =
-    "min-h-screen w-full bg-stone-100 text-stone-900 transition-colors dark:bg-stone-950 dark:text-stone-100";
+  const pageClass = "flex min-h-screen w-full bg-stone-100 text-stone-900 transition-colors dark:bg-stone-950 dark:text-stone-100";
 
   return (
     <div className={pageClass}>
       <SideBar />
       <MobileNav />
 
-      <main className="min-w-0 w-full p-4 pb-24 sm:p-6 lg:ml-64 lg:w-[calc(100%-16rem)] lg:pb-10">
-        <div className="mx-auto w-full max-w-6xl">
+      <main className="min-w-0 w-full p-4 pb-24 sm:p-6 lg:ml-64 lg:w-[calc(100%-16rem)] lg:pb-10 ">
+        <div className="mx-auto w-full max-w-6xl ">
           {/* Sticky heading */}
           <header className="sticky top-0 z-20 mb-6 bg-stone-100/95 py-3 backdrop-blur dark:bg-stone-950/95">
             <p className="text-sm font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-500">
