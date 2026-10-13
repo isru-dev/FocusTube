@@ -2,14 +2,14 @@ import "./App.css";
 import { Register } from "./pages/Register.tsx";
 import { Login } from "./pages/Login.tsx";
 import { SideBar } from "./components/SideBar.tsx";
-import {ProtectedRoute} from './lib/ProtectedRoute.tsx'
+import { ProtectedRoute } from "./lib/ProtectedRoute.tsx";
 import { AddChannel } from "./components/AddChannel.tsx";
-import { Toaster } from 'react-hot-toast';
-
+import { Toaster } from "react-hot-toast";
+import { Study } from "./pages/Study";
 import { Feed } from "./components/Feed.tsx";
 import { Home } from "./pages/Home.tsx";
 import { Saved } from "./pages/Saved.tsx";
-import {Settings} from './pages/Settings.tsx';
+import { Settings } from "./pages/Settings.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 function App() {
   return (
@@ -27,6 +27,14 @@ function App() {
           }
         />
         <Route
+          path="/Study"
+          element={
+            <ProtectedRoute>
+              <Study />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/Saved"
           element={
             <ProtectedRoute>
@@ -34,20 +42,26 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/Feed" element={
-           <ProtectedRoute>
-             <Feed />
+        <Route
+          path="/Feed"
+          element={
+            <ProtectedRoute>
+              <Feed />
             </ProtectedRoute>
-          } />
-          <Route path="/Settings" element={
-           <ProtectedRoute>
-             <Settings />
+          }
+        />
+        <Route
+          path="/Settings"
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
-          } />
+          }
+        />
         <Route path="/" element={<Home />} />
       </Routes>
 
-      <Toaster /> 
+      <Toaster />
     </BrowserRouter>
   );
 }

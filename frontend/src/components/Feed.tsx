@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
+import { BookmarkCheck, Save } from "lucide-react";
+
 import { authFetch } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
 import { SideBar } from "./SideBar";
 import { MobileNav } from "./MobileNav";
-import toast from "react-hot-toast";
-import { Save, BookmarkCheck } from "lucide-react";
 
 interface Video {
   id: string;
@@ -23,35 +24,30 @@ interface Channel {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function Feed() {
-  // Channels + playback
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
   const [loading, setLoading] = useState(true);
-  const [expandedChannels, setExpandedChannels] = useState<string[]>([]);
 
-  // Global search
+  const [expandedChannels, setExpandedChannels] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Video[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
 
-  // Saved videos
   const [savedVideoIds, setSavedVideoIds] = useState<string[]>([]);
   const [savingVideoIds, setSavingVideoIds] = useState<string[]>([]);
   const [saveError, setSaveError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
 
-  // Per-channel pagination:
-  //   undefined -> never loaded more (show button if channel has 10+ videos)
-  //   string    -> another page exists
-  //   null      -> no more pages (hide button)
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const [channelPageTokens, setChannelPageTokens] = useState<
     Record<string, string | null>
   >({});
   const [loadingMoreChannels, setLoadingMoreChannels] = useState<string[]>([]);
+  const [channelsWithMore, setChannelsWithMore] = useState<string[]>([]);
 
   const loadSavedVideos = useCallback(async () => {
     try {
@@ -297,7 +293,9 @@ export function Feed() {
   async function handleLoadMoreChannelVideos(channel: Channel) {
     const channelId = channel.id;
 
-    if (loadingMoreChannels.includes(channelId)) return;
+    if (loadingMoreChannels.includes(channelId)) {
+      return;
+    }
 
     setLoadingMoreChannels((current) => [...current, channelId]);
 
@@ -310,9 +308,9 @@ export function Feed() {
       }
 
       const query = params.toString();
-      const url = `${API_URL}/youtube/url/${encodeURIComponent(
-        channelId,
-      )}/videos${query ? `?${query}` : ""}`;
+      const url = `${API_URL}/youtube/url/${encodeURIComponent(channelId)}/videos${
+        query ? `?${query}` : ""
+      }`;
 
       const response = await authFetch(url);
 
@@ -344,6 +342,16 @@ export function Feed() {
         ...current,
         [channelId]: data.nextPageToken ?? null,
       }));
+
+      if (data.nextPageToken) {
+        setChannelsWithMore((current) =>
+          current.includes(channelId) ? current : [...current, channelId],
+        );
+      } else {
+        setChannelsWithMore((current) =>
+          current.filter((id) => id !== channelId),
+        );
+      }
     } catch (error) {
       console.error("Could not load more creator videos:", error);
 
@@ -473,6 +481,13 @@ export function Feed() {
                 allowFullScreen
               />
             </div>
+
+            <Link
+              to={`/Study?videoId=${encodeURIComponent(playingId)}&title=${encodeURIComponent(playingTitle)}`}
+              className="mt-4 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+            >
+              Open Study Page →
+            </Link>
           </section>
         ) : (
           <>
@@ -599,9 +614,16 @@ export function Feed() {
                 <div className="space-y-4">
                   {channels.map((channel) => {
                     const isExpanded = expandedChannels.includes(channel.id);
-                    const hasMoreVideos =
-                      channelPageTokens[channel.id] !== null &&
-                      channel.videos.length >= 10;
+                    const isLoadingMore = loadingMoreChannels.includes(
+                      channel.id,
+                    );
+                    const showLoadMore =
+                      channelsWithMore.includes(channel.id) ||
+                      (!Object.prototype.hasOwnProperty.call(
+                        channelPageTokens,
+                        channel.id,
+                      ) &&
+                        channel.videos.length >= 10);
 
                     return (
                       <section
@@ -646,7 +668,7 @@ export function Feed() {
                                   )}
                                 </div>
 
-                                {hasMoreVideos && (
+                                {showLoadMore && (
                                   <div className="mt-6 flex justify-center">
                                     <button
                                       type="button"
@@ -655,12 +677,10 @@ export function Feed() {
                                           channel,
                                         )
                                       }
-                                      disabled={loadingMoreChannels.includes(
-                                        channel.id,
-                                      )}
+                                      disabled={isLoadingMore}
                                       className="rounded-lg bg-red-600 px-6 py-3 font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
-                                      {loadingMoreChannels.includes(channel.id)
+                                      {isLoadingMore
                                         ? "Loading videos..."
                                         : "Load More Videos"}
                                     </button>
