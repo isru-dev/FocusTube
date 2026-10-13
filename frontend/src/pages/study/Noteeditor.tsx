@@ -1,37 +1,34 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BlockNoteView } from "@blocknote/mantine";
 import {
-  createReactInlineContentSpec,
   getDefaultReactSlashMenuItems,
   SuggestionMenuController,
   useCreateBlockNote,
 } from "@blocknote/react";
-import {
-  BlockNoteSchema,
-  defaultInlineContentSpecs,
-  type PartialBlock,
-} from "@blocknote/core";
-import { Check, Clock3, LoaderCircle, Trash2 } from "lucide-react";
+import { filterSuggestionItems } from "@blocknote/core/extensions";
 import toast from "react-hot-toast";
+import { Check, Clock3, LoaderCircle, Trash2 } from "lucide-react";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
+import { studySchema, type StudyPartialBlock } from "./schema";
 import {
-  inputClass,
-  secondaryClass,
   formatTime,
+  inputClass,
+  primaryClass,
+  secondaryClass,
   type NotePatch,
   type StudyNote,
+  type YouTubePlayer,
 } from "./Types";
 
 interface Props {
   note: StudyNote;
+  player: YouTubePlayer | null;
   deleting: boolean;
   onSave: (id: string, patch: NotePatch) => Promise<boolean>;
   onDelete: () => void;
-  getCurrentTime: () => number | null;
-  onSeek: (seconds: number) => void;
 }
 
 type SaveStatus = "saved" | "unsaved" | "saving";
@@ -44,55 +41,22 @@ interface LooseBlock {
 interface LooseInline {
   type?: string;
   text?: string;
-  content?: unknown;
   props?: { seconds?: number };
+  content?: unknown;
 }
-
-const timestampChip = createReactInlineContentSpec(
-  {
-    type: "timestamp",
-    propSchema: { seconds: { default: 0, type: "number" } },
-    content: "none",
-  },
-  {
-    render: ({ inlineContent }) => {
-      const seconds = inlineContent.props.seconds;
-      return (
-        <button
-          type="button"
-          contentEditable={false}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            window.dispatchEvent(
-              new CustomEvent("focustube:seek", { detail: seconds }),
-            );
-          }}
-          className="mx-0.5 inline-flex rounded-md bg-sky-500/15 px-1.5 py-0.5 font-mono text-sm font-semibold text-sky-300 hover:bg-sky-500/25"
-        >
-          [{formatTime(seconds)}]
-        </button>
-      );
-    },
-  },
-);
-
-const editorSchema = BlockNoteSchema.create({
-  inlineContentSpecs: {
-    ...defaultInlineContentSpecs,
-    timestamp: timestampChip,
-  },
-});
 
 function inlineToText(content: unknown): string {
   if (!Array.isArray(content)) return "";
 
   return (content as LooseInline[])
-    .map((item) =>
-      item.type === "timestamp"
-        ? `[${formatTime(item.props?.seconds ?? 0)}]`
-        : item.text ?? inlineToText(item.content),
-    )
+    .map((item) => {
+      // Timestamp chips become "[02:35]" so they stay searchable.
+      if (item.type === "timestamp") {
+        return `[${formatTime(item.props?.seconds ?? 0)}]`;
+      }
+
+      return item.text ?? inlineToText(item.content);
+    })
     .join("");
 }
 
@@ -108,34 +72,27 @@ function blocksToText(blocks: LooseBlock[]): string {
     .join("\n");
 }
 
-function getInitialContent(note: StudyNote): PartialBlock[] | undefined {
+function getInitialContent(note: StudyNote): StudyPartialBlock[] | undefined {
   if (Array.isArray(note.content_json) && note.content_json.length > 0) {
-    return note.content_json as PartialBlock[];
+    return note.content_json as StudyPartialBlock[];
   }
 
   // Notes written before the block editor existed only have plain text.
   if (note.content.trim()) {
-    return note.content.split("\n").map(
-      (line): PartialBlock => ({ type: "paragraph", content: line }),
-    );
+    return note.content
+      .split("\n")
+      .map((line): StudyPartialBlock => ({ type: "paragraph", content: line }));
   }
 
   return undefined;
 }
 
-export function NoteEditor({
-  note,
-  deleting,
-  onSave,
-  onDelete,
-  getCurrentTime,
-  onSeek,
-}: Props) {
+export function NoteEditor({ note, player, deleting, onSave, onDelete }: Props) {
   const [title, setTitle] = useState(note.title);
   const [status, setStatus] = useState<SaveStatus>("saved");
 
   const editor = useCreateBlockNote({
-    schema: editorSchema,
+    schema: studySchema,
     initialContent: getInitialContent(note),
   });
 
@@ -148,16 +105,6 @@ export function NoteEditor({
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
-
-  useEffect(() => {
-    function handleSeek(event: Event) {
-      const seconds = (event as CustomEvent<number>).detail;
-      if (typeof seconds === "number") onSeek(seconds);
-    }
-
-    window.addEventListener("focustube:seek", handleSeek);
-    return () => window.removeEventListener("focustube:seek", handleSeek);
-  }, [onSeek]);
 
   const flush = useCallback(async () => {
     if (timer.current) {
@@ -189,37 +136,6 @@ export function NoteEditor({
     timer.current = setTimeout(() => void flush(), 1000);
   }, [flush]);
 
-  const insertTimestamp = useCallback(() => {
-    const seconds = getCurrentTime();
-    if (seconds === null) return;
-    editor.insertInlineContent([{ type: "timestamp", props: { seconds } }]);
-    scheduleSave();
-    toast.success(`Timestamp [${formatTime(seconds)}] inserted. Click it to jump.`);
-  }, [editor, getCurrentTime, scheduleSave]);
-
-  const getSlashMenuItems = useCallback(
-    async (query: string) => {
-      const timestampItem = {
-        key: "heading" as const,
-        title: "Timestamp",
-        subtext: "Insert the current video time",
-        aliases: ["time", "timestamp"],
-        group: "Video",
-        icon: <Clock3 size={18} />,
-        onItemClick: insertTimestamp,
-      };
-      const items = [...getDefaultReactSlashMenuItems(editor), timestampItem];
-      const normalizedQuery = query.toLowerCase();
-
-      return items.filter((item) =>
-        [item.title, ...(item.aliases ?? [])].some((value) =>
-          value.toLowerCase().includes(normalizedQuery),
-        ),
-      );
-    },
-    [editor, insertTimestamp],
-  );
-
   // Switching notes or leaving the page unmounts this component, which
   // saves anything still waiting for the debounce.
   useEffect(() => {
@@ -238,6 +154,43 @@ export function NoteEditor({
 
     window.addEventListener("beforeunload", warnBeforeLeaving);
     return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, []);
+
+  // Drops a clickable timestamp chip for the video's current time at the
+  // cursor. Used by the button, the "/" menu and the Alt+T shortcut.
+  const insertTimestamp = useCallback(() => {
+    if (!player) {
+      toast.error("This page has no video player to take a time from.");
+      return;
+    }
+
+    const seconds = Math.floor(player.getCurrentTime());
+
+    editor.insertInlineContent([{ type: "timestamp", props: { seconds } }, " "]);
+    editor.focus();
+  }, [editor, player]);
+
+  const insertRef = useRef(insertTimestamp);
+
+  useEffect(() => {
+    insertRef.current = insertTimestamp;
+  }, [insertTimestamp]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        event.code === "KeyT"
+      ) {
+        event.preventDefault();
+        insertRef.current();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   function handleTitleChange(value: string) {
@@ -267,25 +220,28 @@ export function NoteEditor({
               : "Saved"}
         </span>
 
-        <button
-          type="button"
-          onClick={insertTimestamp}
-          className={secondaryClass}
-          title="Insert the video's current time into your note"
-        >
-          <Clock3 size={15} />
-          Add video time
-        </button>
+        <div className="ml-auto flex gap-2">
+          <button
+            type="button"
+            onClick={insertTimestamp}
+            disabled={!player}
+            title="Insert the current video time (Alt+T)"
+            className={`${primaryClass} !px-3 !py-2`}
+          >
+            <Clock3 size={15} />
+            Insert time
+          </button>
 
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={deleting}
-          className={`${secondaryClass} ml-auto`}
-        >
-          <Trash2 size={15} />
-          {deleting ? "Deleting…" : "Delete page"}
-        </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            className={`${secondaryClass} !py-2`}
+          >
+            <Trash2 size={15} />
+            {deleting ? "Deleting…" : "Delete page"}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3 p-4">
@@ -302,17 +258,37 @@ export function NoteEditor({
             editor={editor}
             theme="dark"
             onChange={scheduleSave}
+            slashMenu={false}
           >
             <SuggestionMenuController
               triggerCharacter="/"
-              getItems={getSlashMenuItems}
+              getItems={async (query) =>
+                filterSuggestionItems(
+                  [
+                    ...(player
+                      ? [
+                          {
+                            title: "Timestamp",
+                            subtext: "Insert the video's current time",
+                            aliases: ["time", "timestamp", "now", "clock"],
+                            group: "Study",
+                            icon: <Clock3 size={18} />,
+                            onItemClick: insertTimestamp,
+                          },
+                        ]
+                      : []),
+                    ...getDefaultReactSlashMenuItems(editor),
+                  ],
+                  query,
+                )
+              }
             />
           </BlockNoteView>
         </div>
 
         <p className="text-xs text-zinc-600">
-          Type “/” for headings, lists, to-dos and code. Changes save
-          automatically.
+          Type “/” for headings, lists, to-dos and code, or “/time” to drop in
+          the current video time. Changes save automatically.
         </p>
       </div>
     </section>

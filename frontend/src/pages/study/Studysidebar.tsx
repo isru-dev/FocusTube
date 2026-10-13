@@ -11,8 +11,8 @@ import {
 interface Props {
   notes: StudyNote[];
   activeNoteId: string;
+  currentVideo: VideoRef | null;
   creating: boolean;
-  canCreate: boolean;
   onSelect: (note: StudyNote) => void;
   onCreate: (video: VideoRef | null) => void;
 }
@@ -28,8 +28,8 @@ interface Group {
 export function StudySidebar({
   notes,
   activeNoteId,
+  currentVideo,
   creating,
-  canCreate,
   onSelect,
   onCreate,
 }: Props) {
@@ -87,15 +87,32 @@ export function StudySidebar({
 
   return (
     <aside className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+      {/* Creates the page for the video you are watching, so the video stays
+          on screen and the page lands in the right group. */}
       <button
         type="button"
-        onClick={() => onCreate(null)}
-        disabled={creating || !canCreate}
+        onClick={() => onCreate(currentVideo)}
+        disabled={creating}
         className={`${primaryClass} w-full`}
       >
         <FilePlus2 size={16} />
-        {creating ? "Please wait…" : canCreate ? "New personal note" : "Sign in to create notes"}
+        {creating
+          ? "Creating…"
+          : currentVideo
+            ? "New page for this video"
+            : "New personal note"}
       </button>
+
+      {currentVideo && (
+        <button
+          type="button"
+          onClick={() => onCreate(null)}
+          disabled={creating}
+          className="mt-2 w-full text-center text-xs text-zinc-500 hover:text-sky-300 disabled:opacity-50"
+        >
+          or start a personal note (no video)
+        </button>
+      )}
 
       <div className="relative my-3">
         <Search size={15} className="absolute left-3 top-3 text-zinc-500" />
@@ -140,7 +157,7 @@ export function StudySidebar({
                   <button
                     type="button"
                     onClick={() => onCreate(group.video)}
-                    disabled={creating || !canCreate}
+                    disabled={creating}
                     aria-label={`Add a page to ${group.title}`}
                     title="Add a page"
                     className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300 disabled:opacity-50"

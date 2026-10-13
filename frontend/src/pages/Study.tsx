@@ -1,30 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import YouTube, { type YouTubeProps } from "react-youtube";
 import toast from "react-hot-toast";
-import { ArrowLeft, BookOpen, FilePlus2, PlayCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  FilePlus2,
+  PlayCircle,
+  Target,
+} from "lucide-react";
 
+import { FocusBar } from "./study/FocusBar";
 import { KeyMoments } from "./study/Keymoments";
 import { NoteEditor } from "./study/Noteeditor";
+import { PlayerControls } from "./study/PlayerControls";
+import { clearPosition, readPosition, savePosition } from "./study/position";
 import { StudySidebar } from "./study/Studysidebar";
-import { useStudyNotes } from "./study/Usestudynotes ";
+import { useStudyNotes } from "./study/Usestudynotes";
 import {
   primaryClass,
+  SEEK_EVENT,
   secondaryClass,
   type StudyNote,
   type VideoRef,
   type YouTubePlayer,
 } from "./study/Types";
-
-const playerOptions: YouTubeProps["opts"] = {
-  width: "100%",
-  height: "100%",
-  playerVars: { autoplay: 0, rel: 0 },
-};
-
-function progressKey(userId: string, videoId: string) {
-  return `focustube:video-progress:${userId}:${videoId}`;
-}
 
 function latestUpdated(notes: StudyNote[]): StudyNote | undefined {
   return notes.reduce<StudyNote | undefined>(
@@ -40,9 +40,8 @@ export function Study() {
   const [searchParams] = useSearchParams();
   const urlVideoId = (searchParams.get("videoId") ?? "").trim() || null;
   const urlTitle = searchParams.get("title") ?? "Untitled video";
-  const attachNoteId = (searchParams.get("attachNote") ?? "").trim();
 
-  const { userId, notes, loading, createNote, updateNote, attachVideo, deleteNote } =
+  const { userId, notes, loading, createNote, updateNote, deleteNote } =
     useStudyNotes();
 
   const [activeNoteId, setActiveNoteId] = useState("");
@@ -50,12 +49,12 @@ export function Study() {
   const [playerError, setPlayerError] = useState("");
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [focus, setFocus] = useState(false);
 
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
   // most recently edited note when no video is in the URL.
   const pickedFor = useRef<string | null>(null);
-  const attachedFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -71,26 +70,6 @@ export function Study() {
     setActiveNoteId(latestUpdated(candidates)?.id ?? "");
   }, [loading, urlVideoId, notes]);
 
-  useEffect(() => {
-    if (loading || !urlVideoId || !attachNoteId) return;
-
-    const key = `${attachNoteId}:${urlVideoId}`;
-    if (attachedFor.current === key) return;
-
-    const note = notes.find((item) => item.id === attachNoteId);
-    if (!note) return;
-
-    attachedFor.current = key;
-    void attachVideo(attachNoteId, { id: urlVideoId, title: urlTitle }).then(
-      (attached) => {
-        if (attached) {
-          setActiveNoteId(attachNoteId);
-          toast.success("Video attached to your note.");
-        }
-      },
-    );
-  }, [attachNoteId, attachVideo, loading, notes, urlTitle, urlVideoId]);
-
   const activeNote = useMemo(
     () => notes.find((note) => note.id === activeNoteId) ?? null,
     [notes, activeNoteId],
@@ -104,60 +83,92 @@ export function Study() {
     ? { id: playerVideoId, title: activeNote?.video_title ?? urlTitle }
     : null;
 
+  // Where you stopped last time. Read once per video, so saving progress
+  // while watching never restarts the player.
+  const startAt = useMemo(
+    () => (playerVideoId ? readPosition(playerVideoId) : 0),
+    [playerVideoId],
+  );
+
+  const playerOptions = useMemo<YouTubeProps["opts"]>(
+    () => ({
+      width: "100%",
+      height: "100%",
+      playerVars: { autoplay: 0, rel: 0, start: startAt },
+    }),
+    [startAt],
+  );
+
   // A new video means a fresh player.
   useEffect(() => {
     setPlayer(null);
     setPlayerError("");
   }, [playerVideoId]);
 
-  // Keep a per-user position for the current video. Local storage makes this
-  // available the next time the learner opens the workspace in this browser.
+  // Remember the position every few seconds and when the tab closes.
   useEffect(() => {
-    if (!player || !playerVideoId || !userId) return;
+    if (!player || !playerVideoId) return;
 
-    const key = progressKey(userId, playerVideoId);
-    const saveProgress = () => {
-      const seconds = Math.floor(player.getCurrentTime());
-      if (Number.isFinite(seconds) && seconds > 0) {
-        localStorage.setItem(key, String(seconds));
+    const activePlayer = player;
+    const videoId = playerVideoId;
+
+    function save() {
+      try {
+        const time = activePlayer.getCurrentTime();
+        const duration = activePlayer.getDuration();
+
+        if (typeof time !== "number" || time < 5) return;
+
+        // Finished (or nearly): next time starts from the beginning.
+        if (duration > 0 && duration - time < 10) clearPosition(videoId);
+        else savePosition(videoId, time);
+      } catch {
+        // The player may already be torn down; nothing to save then.
       }
-    };
+    }
 
-    const interval = window.setInterval(saveProgress, 5_000);
-    window.addEventListener("pagehide", saveProgress);
+    const id = setInterval(save, 5000);
+    window.addEventListener("pagehide", save);
 
     return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("pagehide", saveProgress);
-      saveProgress();
+      clearInterval(id);
+      window.removeEventListener("pagehide", save);
+      save();
     };
-  }, [player, playerVideoId, userId]);
+  }, [player, playerVideoId]);
 
-  function seekTo(seconds: number) {
-    if (!player) {
-      toast.error("Wait for the video player to load.");
-      return;
+  const seekTo = useCallback(
+    (seconds: number) => {
+      if (!player) {
+        toast.error("Wait for the video player to load.");
+        return;
+      }
+
+      player.seekTo(seconds, true);
+      player.playVideo();
+    },
+    [player],
+  );
+
+  // Timestamp chips inside notes ask us to seek through this event.
+  useEffect(() => {
+    function onSeek(event: Event) {
+      seekTo((event as CustomEvent<number>).detail);
     }
 
-    player.seekTo(seconds, true);
-    player.playVideo();
-  }
+    window.addEventListener(SEEK_EVENT, onSeek);
+    return () => window.removeEventListener(SEEK_EVENT, onSeek);
+  }, [seekTo]);
 
   async function handleCreate(video: VideoRef | null) {
-    if (loading || !userId || creating) {
-      if (!userId && !loading) toast.error("Please sign in to create notes.");
-      return;
-    }
-
     setCreating(true);
-    let created: StudyNote | null = null;
-    try {
-      created = await createNote(video);
-    } finally {
-      setCreating(false);
-    }
+    const created = await createNote(video);
+    setCreating(false);
 
-    if (created) setActiveNoteId(created.id);
+    if (created) {
+      setActiveNoteId(created.id);
+      toast.success("Page created.");
+    }
   }
 
   async function handleDelete() {
@@ -189,35 +200,56 @@ export function Study() {
   return (
     <main className="min-h-screen bg-[#09090b] px-3 py-5 text-zinc-100 sm:px-5 lg:px-8 lg:py-7">
       <div className="mx-auto max-w-[1600px]">
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
-              <BookOpen size={22} />
+        {focus ? (
+          <FocusBar player={player} onExit={() => setFocus(false)} />
+        ) : (
+          <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
+                <BookOpen size={22} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[.2em] text-sky-300">
+                  FocusTube
+                </p>
+                <h1 className="text-xl font-bold sm:text-2xl">
+                  Your notes workspace
+                </h1>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[.2em] text-sky-300">
-                FocusTube
-              </p>
-              <h1 className="text-xl font-bold sm:text-2xl">
-                Your notes workspace
-              </h1>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setFocus(true)}
+                className={primaryClass}
+                title="Hide everything except the video and your note, with a study timer"
+              >
+                <Target size={16} /> Focus mode
+              </button>
+
+              <Link to="/Feed" className={secondaryClass}>
+                <ArrowLeft size={16} /> Back to Feed
+              </Link>
             </div>
-          </div>
+          </header>
+        )}
 
-          <Link to="/Feed" className={secondaryClass}>
-            <ArrowLeft size={16} /> Back to Feed
-          </Link>
-        </header>
-
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-          <StudySidebar
-            notes={notes}
-            activeNoteId={activeNoteId}
-            creating={creating || loading}
-            canCreate={!!userId}
-            onSelect={(note) => setActiveNoteId(note.id)}
-            onCreate={(video) => void handleCreate(video)}
-          />
+        <div
+          className={`grid grid-cols-1 gap-5 ${
+            focus ? "" : "lg:grid-cols-[260px_minmax(0,1fr)]"
+          }`}
+        >
+          {!focus && (
+            <StudySidebar
+              notes={notes}
+              activeNoteId={activeNoteId}
+              currentVideo={contextVideo}
+              creating={creating}
+              onSelect={(note) => setActiveNoteId(note.id)}
+              onCreate={(video) => void handleCreate(video)}
+            />
+          )}
 
           <section className="min-w-0">
             {loading ? (
@@ -227,7 +259,11 @@ export function Study() {
             ) : (
               <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                 {/* Video column: stays in view while you write */}
-                <div className="min-w-0 space-y-5 xl:sticky xl:top-5">
+                <div
+                  className={`min-w-0 space-y-5 xl:sticky ${
+                    focus ? "xl:top-24" : "xl:top-5"
+                  }`}
+                >
                   <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
                     <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
                       <PlayCircle className="text-sky-300" size={18} />
@@ -243,23 +279,8 @@ export function Study() {
                           videoId={playerVideoId}
                           opts={playerOptions}
                           onReady={(event) => {
-                            const readyPlayer = event.target as YouTubePlayer;
-                            setPlayer(readyPlayer);
+                            setPlayer(event.target as YouTubePlayer);
                             setPlayerError("");
-
-                            if (!userId) return;
-
-                            const savedSeconds = Number(
-                              localStorage.getItem(
-                                progressKey(userId, playerVideoId),
-                              ),
-                            );
-                            if (Number.isFinite(savedSeconds) && savedSeconds > 0) {
-                              readyPlayer.seekTo(savedSeconds, true);
-                              toast.success(
-                                `Resumed at ${Math.floor(savedSeconds / 60)}:${String(savedSeconds % 60).padStart(2, "0")}.`,
-                              );
-                            }
                           }}
                           onError={(event) => {
                             console.error("YouTube player error:", event.data);
@@ -278,12 +299,16 @@ export function Study() {
                           This page isn’t linked to a video
                         </p>
                         <Link
-                          to={`/Feed?attachNote=${encodeURIComponent(activeNote?.id ?? "")}`}
+                          to="/Feed"
                           className="text-sm text-sky-300 underline"
                         >
-                          Choose a video to attach
+                          Choose a video from your Feed
                         </Link>
                       </div>
+                    )}
+
+                    {playerVideoId && (
+                      <PlayerControls player={player} resumedFrom={startAt} />
                     )}
 
                     {playerError && playerVideoId && (
@@ -317,17 +342,10 @@ export function Study() {
                     <NoteEditor
                       key={activeNote.id}
                       note={activeNote}
+                      player={player}
                       deleting={deleting}
                       onSave={updateNote}
                       onDelete={() => void handleDelete()}
-                      getCurrentTime={() => {
-                        if (!player) {
-                          toast.error("Wait for the video player to load.");
-                          return null;
-                        }
-                        return Math.floor(player.getCurrentTime());
-                      }}
-                      onSeek={seekTo}
                     />
                   ) : (
                     <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 p-8 text-center">

@@ -32,8 +32,17 @@ export interface VideoRef {
 export interface YouTubePlayer {
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   playVideo: () => void;
+  pauseVideo: () => void;
   getCurrentTime: () => number;
+  getDuration: () => number;
+  getPlayerState: () => number; // 1 = playing
+  setPlaybackRate: (rate: number) => void;
 }
+
+// A timestamp chip in a note dispatches this on `window`; Study listens and
+// seeks the player. (The chip is rendered by the editor library, outside our
+// normal prop tree, so an event is the simplest bridge.)
+export const SEEK_EVENT = "focustube:seek";
 
 export const NOTE_COLUMNS =
   "id, user_id, video_id, video_title, video_url, title, content, content_json, created_at, updated_at";
