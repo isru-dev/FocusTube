@@ -11,11 +11,11 @@ import {
 } from "lucide-react";
 
 import { FocusBar } from "./study/FocusBar";
-import { KeyMoments } from "./study/KeyMoments";
-import { NoteEditor } from "./study/NoteEditor";
+import { KeyMoments } from "./study/Keymoments";
+import { NoteEditor } from "./study/Noteeditor";
 import { PlayerControls } from "./study/PlayerControls";
 import { clearPosition, readPosition, savePosition } from "./study/position";
-import { StudySidebar } from "./study/StudySidebar";
+import { StudySidebar } from "./study/Studysidebar";
 import { useStudyNotes } from "./study/Usestudynotes";
 import {
   primaryClass,

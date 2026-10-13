@@ -26,12 +26,47 @@ const PRESETS = [15, 25, 45, 60];
 const SHORT_BREAK_MIN = 5;
 const LONG_BREAK_MIN = 15;
 const ROUNDS_PER_CYCLE = 4;
+const SESSION_KEY = "focustube:focus-session";
 
 const LABEL: Record<Phase, string> = {
   focus: "Focus",
   short: "Short break",
   long: "Long break",
 };
+
+interface SavedSession {
+  focusMinutes: number;
+  phase: Phase;
+  total: number;
+  remaining: number;
+  running: boolean;
+  endsAt: number;
+  rounds: number;
+  goal: string;
+  sound: boolean;
+}
+
+function readSavedSession(): SavedSession | null {
+  try {
+    const value = localStorage.getItem(SESSION_KEY);
+    if (!value) return null;
+
+    const saved = JSON.parse(value) as Partial<SavedSession>;
+    if (
+      !Number.isFinite(saved.focusMinutes) ||
+      !Number.isFinite(saved.total) ||
+      !Number.isFinite(saved.remaining) ||
+      !Number.isFinite(saved.rounds) ||
+      !["focus", "short", "long"].includes(saved.phase ?? "")
+    ) {
+      return null;
+    }
+
+    return saved as SavedSession;
+  } catch {
+    return null;
+  }
+}
 
 // A short beep, made with the browser's audio API so no sound file is needed.
 function chime() {
@@ -69,28 +104,34 @@ interface Props {
 // break every fourth round. Time is measured against wall-clock end times, so
 // it stays accurate even when the browser throttles a background tab.
 export function FocusBar({ player, onExit }: Props) {
-  const [focusMinutes, setFocusMinutes] = useState(25);
-  const [phase, setPhase] = useState<Phase>("focus");
-  const [total, setTotal] = useState(25 * 60_000);
-  const [remaining, setRemaining] = useState(25 * 60_000);
-  const [running, setRunning] = useState(true);
-  const [rounds, setRounds] = useState(0);
-  const [goal, setGoal] = useState("");
-  const [sound, setSound] = useState(true);
+  const restoredSession = useRef(readSavedSession());
+  const restored = restoredSession.current;
+  const [focusMinutes, setFocusMinutes] = useState(
+    restored?.focusMinutes ?? 25,
+  );
+  const [phase, setPhase] = useState<Phase>(restored?.phase ?? "focus");
+  const [total, setTotal] = useState(restored?.total ?? 25 * 60_000);
+  const [remaining, setRemaining] = useState(
+    restored?.remaining ?? 25 * 60_000,
+  );
+  const [running, setRunning] = useState(restored?.running ?? true);
+  const [rounds, setRounds] = useState(restored?.rounds ?? 0);
+  const [goal, setGoal] = useState(restored?.goal ?? "");
+  const [sound, setSound] = useState(restored?.sound ?? true);
   const [todaySeconds, setTodaySeconds] = useState(readTodaySeconds);
   const [streak, setStreak] = useState(readStreak);
 
   // Mutable copies so timer callbacks never read stale state.
-  const phaseRef = useRef<Phase>("focus");
-  const totalRef = useRef(25 * 60_000);
-  const remainingRef = useRef(25 * 60_000);
-  const runningRef = useRef(true);
-  const endsAt = useRef(0);
+  const phaseRef = useRef<Phase>(restored?.phase ?? "focus");
+  const totalRef = useRef(restored?.total ?? 25 * 60_000);
+  const remainingRef = useRef(restored?.remaining ?? 25 * 60_000);
+  const runningRef = useRef(restored?.running ?? true);
+  const endsAt = useRef(restored?.endsAt ?? 0);
   const creditedRef = useRef(0);
   const sessionMsRef = useRef(0);
-  const roundsRef = useRef(0);
-  const focusMinutesRef = useRef(25);
-  const soundRef = useRef(true);
+  const roundsRef = useRef(restored?.rounds ?? 0);
+  const focusMinutesRef = useRef(restored?.focusMinutes ?? 25);
+  const soundRef = useRef(restored?.sound ?? true);
   const playerRef = useRef(player);
 
   useEffect(() => {
@@ -185,10 +226,47 @@ export function FocusBar({ player, onExit }: Props) {
     }
   }, [beginPhase, creditFocus]);
 
-  // The first focus round starts as soon as Focus mode opens.
+  // Restore an unfinished session after a refresh. A completed timer starts
+  // fresh, because the learner has already been away for the whole phase.
   useEffect(() => {
-    beginPhase("focus", 25 * 60_000, true);
+    const saved = restoredSession.current;
+    if (saved) {
+      const left = saved.running
+        ? Math.max(0, saved.endsAt - Date.now())
+        : saved.remaining;
+
+      if (left > 0) {
+        remainingRef.current = left;
+        setRemaining(left);
+        if (saved.running) endsAt.current = Date.now() + left;
+        toast("Focus session restored.");
+        return;
+      }
+    }
+
+    beginPhase("focus", focusMinutesRef.current * 60_000, true);
   }, [beginPhase]);
+
+  // The deadline is stored instead of repeatedly saving the countdown, so a
+  // running session remains accurate while the page is closed.
+  useEffect(() => {
+    try {
+      const session: SavedSession = {
+        focusMinutes,
+        phase,
+        total,
+        remaining: remainingRef.current,
+        running,
+        endsAt: running ? endsAt.current : 0,
+        rounds,
+        goal,
+        sound,
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // Session persistence is optional when browser storage is unavailable.
+    }
+  }, [focusMinutes, goal, phase, rounds, running, sound, total]);
 
   useEffect(() => {
     if (!running) return;
@@ -271,6 +349,12 @@ export function FocusBar({ player, onExit }: Props) {
             : ".") +
           " Nice work!",
       );
+    }
+
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch {
+      // Nothing else is needed when storage is unavailable.
     }
 
     onExit();
