@@ -9,6 +9,19 @@ import {
   type VideoRef,
 } from "./Types";
 
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return "Unknown error";
+}
+
 export function useStudyNotes() {
   const [userId, setUserId] = useState("");
   const [notes, setNotes] = useState<StudyNote[]>([]);
@@ -75,13 +88,16 @@ export function useStudyNotes() {
           .insert({
             user_id: userId,
             video_id: video?.id ?? null,
-            video_title: video?.title ?? null,
+            // The current database schema requires a title even for notes
+            // that are not attached to a video.
+            video_title: video?.title ?? "Personal note",
             video_url: video
               ? `https://www.youtube.com/watch?v=${video.id}`
               : null,
             title: "Untitled",
             content: "",
             content_json: null,
+            updated_at: new Date().toISOString(),
           })
           .select(NOTE_COLUMNS)
           .single();
@@ -93,11 +109,7 @@ export function useStudyNotes() {
         return created;
       } catch (error) {
         console.error("Failed to create note:", error);
-        toast.error(
-          error instanceof Error
-            ? `Could not create note: ${error.message}`
-            : "Could not create note.",
-        );
+        toast.error(`Could not create note: ${errorMessage(error)}`);
         return null;
       }
     },
@@ -132,6 +144,38 @@ export function useStudyNotes() {
     [userId],
   );
 
+  const attachVideo = useCallback(
+    async (id: string, video: VideoRef): Promise<boolean> => {
+      const updatedAt = new Date().toISOString();
+      const videoPatch = {
+        video_id: video.id,
+        video_title: video.title,
+        video_url: `https://www.youtube.com/watch?v=${video.id}`,
+        updated_at: updatedAt,
+      };
+
+      const { error } = await supabase
+        .from("video_notes")
+        .update(videoPatch)
+        .eq("id", id)
+        .eq("user_id", userId);
+
+      if (error) {
+        console.error("Failed to attach video to note:", error);
+        toast.error(`Could not attach video: ${error.message}`);
+        return false;
+      }
+
+      setNotes((current) =>
+        current.map((note) =>
+          note.id === id ? { ...note, ...videoPatch } : note,
+        ),
+      );
+      return true;
+    },
+    [userId],
+  );
+
   const deleteNote = useCallback(
     async (id: string): Promise<boolean> => {
       const { error } = await supabase
@@ -152,5 +196,13 @@ export function useStudyNotes() {
     [userId],
   );
 
-  return { userId, notes, loading, createNote, updateNote, deleteNote };
+  return {
+    userId,
+    notes,
+    loading,
+    createNote,
+    updateNote,
+    attachVideo,
+    deleteNote,
+  };
 }

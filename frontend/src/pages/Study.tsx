@@ -36,8 +36,9 @@ export function Study() {
   const [searchParams] = useSearchParams();
   const urlVideoId = (searchParams.get("videoId") ?? "").trim() || null;
   const urlTitle = searchParams.get("title") ?? "Untitled video";
+  const attachNoteId = (searchParams.get("attachNote") ?? "").trim();
 
-  const { userId, notes, loading, createNote, updateNote, deleteNote } =
+  const { userId, notes, loading, createNote, updateNote, attachVideo, deleteNote } =
     useStudyNotes();
 
   const [activeNoteId, setActiveNoteId] = useState("");
@@ -50,6 +51,7 @@ export function Study() {
   // points at a different video): the newest page for that video, or the
   // most recently edited note when no video is in the URL.
   const pickedFor = useRef<string | null>(null);
+  const attachedFor = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -64,6 +66,26 @@ export function Study() {
 
     setActiveNoteId(latestUpdated(candidates)?.id ?? "");
   }, [loading, urlVideoId, notes]);
+
+  useEffect(() => {
+    if (loading || !urlVideoId || !attachNoteId) return;
+
+    const key = `${attachNoteId}:${urlVideoId}`;
+    if (attachedFor.current === key) return;
+
+    const note = notes.find((item) => item.id === attachNoteId);
+    if (!note) return;
+
+    attachedFor.current = key;
+    void attachVideo(attachNoteId, { id: urlVideoId, title: urlTitle }).then(
+      (attached) => {
+        if (attached) {
+          setActiveNoteId(attachNoteId);
+          toast.success("Video attached to your note.");
+        }
+      },
+    );
+  }, [attachNoteId, attachVideo, loading, notes, urlTitle, urlVideoId]);
 
   const activeNote = useMemo(
     () => notes.find((note) => note.id === activeNoteId) ?? null,
@@ -95,9 +117,18 @@ export function Study() {
   }
 
   async function handleCreate(video: VideoRef | null) {
+    if (loading || !userId || creating) {
+      if (!userId && !loading) toast.error("Please sign in to create notes.");
+      return;
+    }
+
     setCreating(true);
-    const created = await createNote(video);
-    setCreating(false);
+    let created: StudyNote | null = null;
+    try {
+      created = await createNote(video);
+    } finally {
+      setCreating(false);
+    }
 
     if (created) setActiveNoteId(created.id);
   }
@@ -155,7 +186,8 @@ export function Study() {
           <StudySidebar
             notes={notes}
             activeNoteId={activeNoteId}
-            creating={creating}
+            creating={creating || loading}
+            canCreate={!!userId}
             onSelect={(note) => setActiveNoteId(note.id)}
             onCreate={(video) => void handleCreate(video)}
           />
@@ -204,10 +236,10 @@ export function Study() {
                           This page isn’t linked to a video
                         </p>
                         <Link
-                          to="/Feed"
+                          to={`/Feed?attachNote=${encodeURIComponent(activeNote?.id ?? "")}`}
                           className="text-sm text-sky-300 underline"
                         >
-                          Choose a video from your Feed
+                          Choose a video to attach
                         </Link>
                       </div>
                     )}

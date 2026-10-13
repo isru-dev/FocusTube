@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { BookmarkCheck, Save } from "lucide-react";
 
@@ -24,6 +24,8 @@ interface Channel {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export function Feed() {
+  const [searchParams] = useSearchParams();
+  const attachNoteId = (searchParams.get("attachNote") ?? "").trim();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
@@ -483,7 +485,11 @@ export function Feed() {
             </div>
 
             <Link
-              to={`/Study?videoId=${encodeURIComponent(playingId)}&title=${encodeURIComponent(playingTitle)}`}
+              to={`/Study?videoId=${encodeURIComponent(playingId)}&title=${encodeURIComponent(playingTitle)}${
+                attachNoteId
+                  ? `&attachNote=${encodeURIComponent(attachNoteId)}`
+                  : ""
+              }`}
               className="mt-4 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
             >
               Open Study Page →
