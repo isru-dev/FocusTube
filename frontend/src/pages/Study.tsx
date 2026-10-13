@@ -22,6 +22,10 @@ const playerOptions: YouTubeProps["opts"] = {
   playerVars: { autoplay: 0, rel: 0 },
 };
 
+function progressKey(userId: string, videoId: string) {
+  return `focustube:video-progress:${userId}:${videoId}`;
+}
+
 function latestUpdated(notes: StudyNote[]): StudyNote | undefined {
   return notes.reduce<StudyNote | undefined>(
     (best, note) =>
@@ -105,6 +109,29 @@ export function Study() {
     setPlayer(null);
     setPlayerError("");
   }, [playerVideoId]);
+
+  // Keep a per-user position for the current video. Local storage makes this
+  // available the next time the learner opens the workspace in this browser.
+  useEffect(() => {
+    if (!player || !playerVideoId || !userId) return;
+
+    const key = progressKey(userId, playerVideoId);
+    const saveProgress = () => {
+      const seconds = Math.floor(player.getCurrentTime());
+      if (Number.isFinite(seconds) && seconds > 0) {
+        localStorage.setItem(key, String(seconds));
+      }
+    };
+
+    const interval = window.setInterval(saveProgress, 5_000);
+    window.addEventListener("pagehide", saveProgress);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("pagehide", saveProgress);
+      saveProgress();
+    };
+  }, [player, playerVideoId, userId]);
 
   function seekTo(seconds: number) {
     if (!player) {
@@ -216,8 +243,23 @@ export function Study() {
                           videoId={playerVideoId}
                           opts={playerOptions}
                           onReady={(event) => {
-                            setPlayer(event.target as YouTubePlayer);
+                            const readyPlayer = event.target as YouTubePlayer;
+                            setPlayer(readyPlayer);
                             setPlayerError("");
+
+                            if (!userId) return;
+
+                            const savedSeconds = Number(
+                              localStorage.getItem(
+                                progressKey(userId, playerVideoId),
+                              ),
+                            );
+                            if (Number.isFinite(savedSeconds) && savedSeconds > 0) {
+                              readyPlayer.seekTo(savedSeconds, true);
+                              toast.success(
+                                `Resumed at ${Math.floor(savedSeconds / 60)}:${String(savedSeconds % 60).padStart(2, "0")}.`,
+                              );
+                            }
                           }}
                           onError={(event) => {
                             console.error("YouTube player error:", event.data);
