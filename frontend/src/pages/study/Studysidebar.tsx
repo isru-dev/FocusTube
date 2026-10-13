@@ -6,7 +6,7 @@ import {
   primaryClass,
   type StudyNote,
   type VideoRef,
-} from "./Types ";
+} from "./Types";
 
 interface Props {
   notes: StudyNote[];

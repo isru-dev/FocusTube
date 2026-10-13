@@ -7,7 +7,7 @@ import {
   type NotePatch,
   type StudyNote,
   type VideoRef,
-} from "./Types ";
+} from "./Types";
 
 export function useStudyNotes() {
   const [userId, setUserId] = useState("");

@@ -12,7 +12,7 @@ import {
   secondaryClass,
   type NotePatch,
   type StudyNote,
-} from "./Types ";
+} from "./Types";
 
 interface Props {
   note: StudyNote;

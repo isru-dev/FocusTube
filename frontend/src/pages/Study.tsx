@@ -14,7 +14,7 @@ import {
   type StudyNote,
   type VideoRef,
   type YouTubePlayer,
-} from "./study/Types ";
+} from "./study/Types";
 
 const playerOptions: YouTubeProps["opts"] = {
   width: "100%",
