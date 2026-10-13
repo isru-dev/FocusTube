@@ -18,7 +18,7 @@ import {
   readStreak,
   readTodaySeconds,
 } from "./focusStats";
-import { formatTime, inputClass, secondaryClass, type YouTubePlayer } from "./Types";
+import { formatTime, secondaryClass, type YouTubePlayer } from "./Types";
 
 type Phase = "focus" | "short" | "long";
 
@@ -364,44 +364,68 @@ export function FocusBar({ player, onExit }: Props) {
   const fresh = remaining === total;
   const cycleDots =
     phase === "long" ? ROUNDS_PER_CYCLE : rounds % ROUNDS_PER_CYCLE;
+  const progress = total > 0 ? Math.min(100, ((total - remaining) / total) * 100) : 0;
+  const roundNumber = (rounds % ROUNDS_PER_CYCLE) + 1;
 
   return (
     <section
       aria-label="Focus session"
-      className={`sticky top-0 z-20 mb-5 space-y-3 rounded-2xl border bg-zinc-900/95 px-4 py-3 backdrop-blur ${
-        isBreak ? "border-emerald-500/40" : "border-sky-500/30"
+      className={`sticky top-0 z-20 mb-5 overflow-hidden rounded-2xl border bg-zinc-950/95 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur ${
+        isBreak ? "border-emerald-500/35" : "border-sky-500/35"
       }`}
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <div
-          className={`flex items-center gap-2 ${
-            isBreak ? "text-emerald-300" : "text-sky-300"
-          }`}
-        >
-          <Target size={18} />
-          <span className="text-sm font-semibold">{LABEL[phase]}</span>
-        </div>
-
-        <div
-          className="flex gap-1"
-          role="img"
-          aria-label={`${cycleDots} of ${ROUNDS_PER_CYCLE} rounds done`}
-        >
-          {Array.from({ length: ROUNDS_PER_CYCLE }, (_, index) => (
-            <span
-              key={index}
-              className={`h-2 w-2 rounded-full ${
-                index < cycleDots ? "bg-sky-400" : "bg-zinc-700"
+      <div className="space-y-4 px-4 py-4 sm:px-5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
+                isBreak
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                  : "border-sky-400/30 bg-sky-400/10 text-sky-300"
               }`}
-            />
-          ))}
-        </div>
+            >
+              <Target size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-zinc-100">
+                  {LABEL[phase]}
+                </span>
+                <span className="text-xs text-zinc-500">
+                  {isBreak ? "Recovery time" : `Round ${roundNumber} of ${ROUNDS_PER_CYCLE}`}
+                </span>
+              </div>
+              <div
+                className="mt-1 flex gap-1"
+                role="img"
+                aria-label={`${cycleDots} of ${ROUNDS_PER_CYCLE} rounds done`}
+              >
+                {Array.from({ length: ROUNDS_PER_CYCLE }, (_, index) => (
+                  <span
+                    key={index}
+                    className={`h-1.5 w-5 rounded-full ${
+                      index < cycleDots
+                        ? isBreak
+                          ? "bg-emerald-400"
+                          : "bg-sky-400"
+                        : "bg-zinc-800"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
 
-        <span className="font-mono text-2xl font-bold tabular-nums text-zinc-100">
-          {formatTime(Math.ceil(remaining / 1000))}
-        </span>
+          <div className="flex items-center gap-3 sm:ml-2">
+            <span className="font-mono text-3xl font-bold tracking-tight tabular-nums text-zinc-50">
+              {formatTime(Math.ceil(remaining / 1000))}
+            </span>
+            <span className="hidden text-xs text-zinc-500 sm:inline">
+              {Math.round(progress)}% complete
+            </span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           {running ? (
             <button
               type="button"
@@ -454,46 +478,59 @@ export function FocusBar({ player, onExit }: Props) {
               </select>
             </>
           )}
+          <button
+            type="button"
+            onClick={exit}
+            className={`${secondaryClass} !px-3 !py-1.5`}
+          >
+            <X size={14} /> Exit focus
+          </button>
+          </div>
         </div>
 
-        <button
-          type="button"
-          onClick={exit}
-          className={`${secondaryClass} ml-auto !px-3 !py-1.5`}
-        >
-          <X size={14} /> Exit focus
-        </button>
-      </div>
+        <div className="h-1 overflow-hidden rounded-full bg-zinc-900">
+          <div
+            className={`h-full rounded-full transition-[width] duration-500 ${
+              isBreak ? "bg-emerald-400" : "bg-sky-400"
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <input
-          value={goal}
-          onChange={(event) => setGoal(event.target.value)}
-          maxLength={80}
-          placeholder="What will you finish this session?"
-          aria-label="Session goal"
-          className={`${inputClass} min-w-0 flex-1 !py-1.5`}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+            <Target size={15} className="shrink-0 text-zinc-500" />
+            <span className="shrink-0 text-xs font-medium text-zinc-500">Session goal</span>
+            <input
+              value={goal}
+              onChange={(event) => setGoal(event.target.value)}
+              maxLength={80}
+              placeholder="What will you finish this session?"
+              aria-label="Session goal"
+              className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+            />
+          </label>
 
-        <span className="text-xs text-zinc-400">
-          Today: {formatMinutes(todaySeconds)}
-        </span>
-
-        {streak > 0 && (
-          <span className="flex items-center gap-1 text-xs text-amber-300">
-            <Flame size={13} /> {streak}-day streak
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setSound((value) => !value)}
-          aria-pressed={sound}
-          title={sound ? "Mute the chime" : "Unmute the chime"}
-          className="rounded-lg p-1.5 text-zinc-400 hover:text-sky-300"
-        >
-          {sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        </button>
+          <div className="flex items-center gap-2 text-xs text-zinc-400">
+            <span className="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2">
+              Today <strong className="ml-1 font-semibold text-zinc-200">{formatMinutes(todaySeconds)}</strong>
+            </span>
+            {streak > 0 && (
+              <span className="flex items-center gap-1 rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2 text-amber-300">
+                <Flame size={13} /> {streak}-day streak
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setSound((value) => !value)}
+              aria-pressed={sound}
+              title={sound ? "Mute the chime" : "Unmute the chime"}
+              className="rounded-lg border border-zinc-800 bg-zinc-900 p-2 text-zinc-400 transition hover:border-sky-400/30 hover:text-sky-300"
+            >
+              {sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            </button>
+          </div>
+        </div>
       </div>
     </section>
   );
