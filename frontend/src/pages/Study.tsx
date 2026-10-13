@@ -278,6 +278,14 @@ export function Study() {
                       deleting={deleting}
                       onSave={updateNote}
                       onDelete={() => void handleDelete()}
+                      getCurrentTime={() => {
+                        if (!player) {
+                          toast.error("Wait for the video player to load.");
+                          return null;
+                        }
+                        return Math.floor(player.getCurrentTime());
+                      }}
+                      onSeek={seekTo}
                     />
                   ) : (
                     <div className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 p-8 text-center">

@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BlockNoteView } from "@blocknote/mantine";
-import { useCreateBlockNote } from "@blocknote/react";
-import type { PartialBlock } from "@blocknote/core";
-import { Check, LoaderCircle, Trash2 } from "lucide-react";
+import {
+  createReactInlineContentSpec,
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController,
+  useCreateBlockNote,
+} from "@blocknote/react";
+import {
+  BlockNoteSchema,
+  defaultInlineContentSpecs,
+  type PartialBlock,
+} from "@blocknote/core";
+import { Check, Clock3, LoaderCircle, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -10,6 +20,7 @@ import "@blocknote/mantine/style.css";
 import {
   inputClass,
   secondaryClass,
+  formatTime,
   type NotePatch,
   type StudyNote,
 } from "./Types";
@@ -19,6 +30,8 @@ interface Props {
   deleting: boolean;
   onSave: (id: string, patch: NotePatch) => Promise<boolean>;
   onDelete: () => void;
+  getCurrentTime: () => number | null;
+  onSeek: (seconds: number) => void;
 }
 
 type SaveStatus = "saved" | "unsaved" | "saving";
@@ -29,15 +42,57 @@ interface LooseBlock {
 }
 
 interface LooseInline {
+  type?: string;
   text?: string;
   content?: unknown;
+  props?: { seconds?: number };
 }
+
+const timestampChip = createReactInlineContentSpec(
+  {
+    type: "timestamp",
+    propSchema: { seconds: { default: 0, type: "number" } },
+    content: "none",
+  },
+  {
+    render: ({ inlineContent }) => {
+      const seconds = inlineContent.props.seconds;
+      return (
+        <button
+          type="button"
+          contentEditable={false}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            window.dispatchEvent(
+              new CustomEvent("focustube:seek", { detail: seconds }),
+            );
+          }}
+          className="mx-0.5 inline-flex rounded-md bg-sky-500/15 px-1.5 py-0.5 font-mono text-sm font-semibold text-sky-300 hover:bg-sky-500/25"
+        >
+          [{formatTime(seconds)}]
+        </button>
+      );
+    },
+  },
+);
+
+const editorSchema = BlockNoteSchema.create({
+  inlineContentSpecs: {
+    ...defaultInlineContentSpecs,
+    timestamp: timestampChip,
+  },
+});
 
 function inlineToText(content: unknown): string {
   if (!Array.isArray(content)) return "";
 
   return (content as LooseInline[])
-    .map((item) => item.text ?? inlineToText(item.content))
+    .map((item) =>
+      item.type === "timestamp"
+        ? `[${formatTime(item.props?.seconds ?? 0)}]`
+        : item.text ?? inlineToText(item.content),
+    )
     .join("");
 }
 
@@ -68,11 +123,21 @@ function getInitialContent(note: StudyNote): PartialBlock[] | undefined {
   return undefined;
 }
 
-export function NoteEditor({ note, deleting, onSave, onDelete }: Props) {
+export function NoteEditor({
+  note,
+  deleting,
+  onSave,
+  onDelete,
+  getCurrentTime,
+  onSeek,
+}: Props) {
   const [title, setTitle] = useState(note.title);
   const [status, setStatus] = useState<SaveStatus>("saved");
 
-  const editor = useCreateBlockNote({ initialContent: getInitialContent(note) });
+  const editor = useCreateBlockNote({
+    schema: editorSchema,
+    initialContent: getInitialContent(note),
+  });
 
   const dirty = useRef(false);
   const mounted = useRef(true);
@@ -83,6 +148,16 @@ export function NoteEditor({ note, deleting, onSave, onDelete }: Props) {
   useEffect(() => {
     onSaveRef.current = onSave;
   }, [onSave]);
+
+  useEffect(() => {
+    function handleSeek(event: Event) {
+      const seconds = (event as CustomEvent<number>).detail;
+      if (typeof seconds === "number") onSeek(seconds);
+    }
+
+    window.addEventListener("focustube:seek", handleSeek);
+    return () => window.removeEventListener("focustube:seek", handleSeek);
+  }, [onSeek]);
 
   const flush = useCallback(async () => {
     if (timer.current) {
@@ -113,6 +188,37 @@ export function NoteEditor({ note, deleting, onSave, onDelete }: Props) {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush(), 1000);
   }, [flush]);
+
+  const insertTimestamp = useCallback(() => {
+    const seconds = getCurrentTime();
+    if (seconds === null) return;
+    editor.insertInlineContent([{ type: "timestamp", props: { seconds } }]);
+    scheduleSave();
+    toast.success(`Timestamp [${formatTime(seconds)}] inserted. Click it to jump.`);
+  }, [editor, getCurrentTime, scheduleSave]);
+
+  const getSlashMenuItems = useCallback(
+    async (query: string) => {
+      const timestampItem = {
+        key: "heading" as const,
+        title: "Timestamp",
+        subtext: "Insert the current video time",
+        aliases: ["time", "timestamp"],
+        group: "Video",
+        icon: <Clock3 size={18} />,
+        onItemClick: insertTimestamp,
+      };
+      const items = [...getDefaultReactSlashMenuItems(editor), timestampItem];
+      const normalizedQuery = query.toLowerCase();
+
+      return items.filter((item) =>
+        [item.title, ...(item.aliases ?? [])].some((value) =>
+          value.toLowerCase().includes(normalizedQuery),
+        ),
+      );
+    },
+    [editor, insertTimestamp],
+  );
 
   // Switching notes or leaving the page unmounts this component, which
   // saves anything still waiting for the debounce.
@@ -163,6 +269,16 @@ export function NoteEditor({ note, deleting, onSave, onDelete }: Props) {
 
         <button
           type="button"
+          onClick={insertTimestamp}
+          className={secondaryClass}
+          title="Insert the video's current time into your note"
+        >
+          <Clock3 size={15} />
+          Add video time
+        </button>
+
+        <button
+          type="button"
           onClick={onDelete}
           disabled={deleting}
           className={`${secondaryClass} ml-auto`}
@@ -186,7 +302,12 @@ export function NoteEditor({ note, deleting, onSave, onDelete }: Props) {
             editor={editor}
             theme="dark"
             onChange={scheduleSave}
-          />
+          >
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={getSlashMenuItems}
+            />
+          </BlockNoteView>
         </div>
 
         <p className="text-xs text-zinc-600">
