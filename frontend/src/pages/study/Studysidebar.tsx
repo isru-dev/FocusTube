@@ -12,6 +12,7 @@ interface Props {
   notes: StudyNote[];
   activeNoteId: string;
   creating: boolean;
+  canCreate: boolean;
   onSelect: (note: StudyNote) => void;
   onCreate: (video: VideoRef | null) => void;
 }
@@ -28,6 +29,7 @@ export function StudySidebar({
   notes,
   activeNoteId,
   creating,
+  canCreate,
   onSelect,
   onCreate,
 }: Props) {
@@ -88,11 +90,11 @@ export function StudySidebar({
       <button
         type="button"
         onClick={() => onCreate(null)}
-        disabled={creating}
+        disabled={creating || !canCreate}
         className={`${primaryClass} w-full`}
       >
         <FilePlus2 size={16} />
-        {creating ? "Creating…" : "New personal note"}
+        {creating ? "Please wait…" : canCreate ? "New personal note" : "Sign in to create notes"}
       </button>
 
       <div className="relative my-3">
@@ -138,7 +140,7 @@ export function StudySidebar({
                   <button
                     type="button"
                     onClick={() => onCreate(group.video)}
-                    disabled={creating}
+                    disabled={creating || !canCreate}
                     aria-label={`Add a page to ${group.title}`}
                     title="Add a page"
                     className="shrink-0 rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300 disabled:opacity-50"
