@@ -52,6 +52,8 @@ export function Study() {
   const [deleting, setDeleting] = useState(false);
   const [focus, setFocus] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
+  const [videoPinned, setVideoPinned] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
@@ -105,6 +107,32 @@ export function Study() {
   useEffect(() => {
     setPlayer(null);
     setPlayerError("");
+  }, [activeNoteId, loading, playerVideoId]);
+
+  // On phones, keep the same player visible as a compact floating video once
+  // the learner reaches the editor. Desktop has the side-by-side layout.
+  useEffect(() => {
+    function updatePinnedVideo() {
+      if (
+        window.innerWidth >= 1024 ||
+        !editorRef.current ||
+        !playerVideoId
+      ) {
+        setVideoPinned(false);
+        return;
+      }
+
+      setVideoPinned(editorRef.current.getBoundingClientRect().top < 24);
+    }
+
+    window.addEventListener("scroll", updatePinnedVideo, { passive: true });
+    window.addEventListener("resize", updatePinnedVideo);
+    updatePinnedVideo();
+
+    return () => {
+      window.removeEventListener("scroll", updatePinnedVideo);
+      window.removeEventListener("resize", updatePinnedVideo);
+    };
   }, [playerVideoId]);
 
   // Remember the position every few seconds and when the tab closes.
@@ -276,13 +304,21 @@ export function Study() {
                     focus ? "lg:top-24" : "lg:top-5"
                   }`}
                 >
-                  <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+                  <section
+                    className={`overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-shadow ${
+                      videoPinned
+                        ? "fixed right-3 top-3 z-30 w-[46vw] max-w-56 shadow-2xl shadow-black/60"
+                        : ""
+                    }`}
+                  >
+                    {!videoPinned && (
                     <div className="flex items-center gap-2 border-b border-zinc-800 px-4 py-3">
                       <PlayCircle className="text-sky-300" size={18} />
                       <h2 className="min-w-0 flex-1 truncate font-semibold">
                         {contextVideo?.title ?? "Video lesson"}
                       </h2>
                     </div>
+                    )}
 
                     {playerVideoId ? (
                       <div className="aspect-video bg-black">
@@ -319,7 +355,7 @@ export function Study() {
                       </div>
                     )}
 
-                    {playerVideoId && (
+                    {playerVideoId && !videoPinned && (
                       <PlayerControls player={player} resumedFrom={startAt} />
                     )}
 
@@ -349,7 +385,10 @@ export function Study() {
                 </div>
 
                 {/* Editor column */}
-                <div className="min-w-0">
+                <div
+                  ref={editorRef}
+                  className={`min-w-0 ${videoPinned ? "pt-24" : ""}`}
+                >
                   {activeNote ? (
                     <NoteEditor
                       key={activeNote.id}
