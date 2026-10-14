@@ -116,7 +116,7 @@ export function PlayerControls({ player, resumedFrom }: Props) {
           {SKIP_SECONDS}s <RotateCw size={14} />
         </button>
 
-        <label className="ml-auto flex items-center gap-2 text-xs text-zinc-400">
+        <label className="ml-0 flex items-center gap-2 text-xs text-zinc-400 sm:ml-auto">
           Speed
           <select
             value={speed}

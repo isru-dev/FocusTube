@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   BookOpen,
   FilePlus2,
+  PanelLeftOpen,
   PlayCircle,
   Target,
 } from "lucide-react";
@@ -50,6 +51,7 @@ export function Study() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
 
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
@@ -203,7 +205,7 @@ export function Study() {
         {focus ? (
           <FocusBar player={player} onExit={() => setFocus(false)} />
         ) : (
-          <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
                 <BookOpen size={22} />
@@ -218,17 +220,17 @@ export function Study() {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex w-full gap-2 sm:w-auto">
               <button
                 type="button"
                 onClick={() => setFocus(true)}
-                className={primaryClass}
+                className={`${primaryClass} flex-1 sm:flex-none`}
                 title="Hide everything except the video and your note, with a study timer"
               >
                 <Target size={16} /> Focus mode
               </button>
 
-              <Link to="/Feed" className={secondaryClass}>
+              <Link to="/Feed" className={`${secondaryClass} flex-1 sm:flex-none`}>
                 <ArrowLeft size={16} /> Back to Feed
               </Link>
             </div>
@@ -237,31 +239,41 @@ export function Study() {
 
         <div
           className={`grid grid-cols-1 gap-5 ${
-            focus ? "" : "lg:grid-cols-[260px_minmax(0,1fr)]"
+            focus || !historyOpen ? "" : "lg:grid-cols-[260px_minmax(0,1fr)]"
           }`}
         >
-          {!focus && (
+          {!focus && historyOpen && (
             <StudySidebar
               notes={notes}
               activeNoteId={activeNoteId}
               currentVideo={contextVideo}
               creating={creating}
+              onCollapse={() => setHistoryOpen(false)}
               onSelect={(note) => setActiveNoteId(note.id)}
               onCreate={(video) => void handleCreate(video)}
             />
           )}
 
           <section className="min-w-0">
+            {!focus && !historyOpen && (
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(true)}
+                className={`${secondaryClass} mb-4`}
+              >
+                <PanelLeftOpen size={16} /> Show note history
+              </button>
+            )}
             {loading ? (
               <p className="flex min-h-72 items-center justify-center text-zinc-500">
                 Loading workspace…
               </p>
             ) : (
-              <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+              <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 {/* Video column: stays in view while you write */}
                 <div
-                  className={`min-w-0 space-y-5 xl:sticky ${
-                    focus ? "xl:top-24" : "xl:top-5"
+                  className={`min-w-0 space-y-5 lg:sticky ${
+                    focus ? "lg:top-24" : "lg:top-5"
                   }`}
                 >
                   <section className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">

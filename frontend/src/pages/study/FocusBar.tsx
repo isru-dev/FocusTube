@@ -370,15 +370,15 @@ export function FocusBar({ player, onExit }: Props) {
   return (
     <section
       aria-label="Focus session"
-      className={`sticky top-0 z-20 mb-5 overflow-hidden rounded-2xl border bg-zinc-950/95 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur ${
+      className={`z-20 mb-5 overflow-hidden rounded-2xl border bg-zinc-950/95 shadow-[0_18px_50px_rgba(0,0,0,0.3)] backdrop-blur sm:sticky sm:top-0 ${
         isBreak ? "border-emerald-500/35" : "border-sky-500/35"
       }`}
     >
-      <div className="space-y-4 px-4 py-4 sm:px-5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
-          <div className="flex items-center gap-3">
+      <div className="space-y-3 px-3 py-3 sm:space-y-4 sm:px-5 sm:py-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-3 sm:gap-x-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3">
             <div
-              className={`flex h-9 w-9 items-center justify-center rounded-xl border ${
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border sm:h-9 sm:w-9 sm:rounded-xl ${
                 isBreak
                   ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                   : "border-sky-400/30 bg-sky-400/10 text-sky-300"
@@ -387,11 +387,11 @@ export function FocusBar({ player, onExit }: Props) {
               <Target size={18} />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-sm font-semibold text-zinc-100">
                   {LABEL[phase]}
                 </span>
-                <span className="text-xs text-zinc-500">
+                <span className="truncate text-xs text-zinc-500">
                   {isBreak ? "Recovery time" : `Round ${roundNumber} of ${ROUNDS_PER_CYCLE}`}
                 </span>
               </div>
@@ -417,7 +417,7 @@ export function FocusBar({ player, onExit }: Props) {
           </div>
 
           <div className="flex items-center gap-3 sm:ml-2">
-            <span className="font-mono text-3xl font-bold tracking-tight tabular-nums text-zinc-50">
+            <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-zinc-50 sm:text-3xl">
               {formatTime(Math.ceil(remaining / 1000))}
             </span>
             <span className="hidden text-xs text-zinc-500 sm:inline">
@@ -425,12 +425,12 @@ export function FocusBar({ player, onExit }: Props) {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+          <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto">
           {running ? (
             <button
               type="button"
               onClick={pause}
-              className={`${secondaryClass} !px-2.5 !py-1.5`}
+              className={`${secondaryClass} !justify-center !px-2.5 !py-2 sm:!py-1.5`}
             >
               <Pause size={14} /> Pause
             </button>
@@ -438,7 +438,7 @@ export function FocusBar({ player, onExit }: Props) {
             <button
               type="button"
               onClick={resume}
-              className={`${secondaryClass} !px-2.5 !py-1.5`}
+              className={`${secondaryClass} !justify-center !px-2.5 !py-2 sm:!py-1.5`}
             >
               <Play size={14} /> {fresh ? "Start" : "Resume"}
             </button>
@@ -448,7 +448,7 @@ export function FocusBar({ player, onExit }: Props) {
             <button
               type="button"
               onClick={skipBreak}
-              className={`${secondaryClass} !px-2.5 !py-1.5`}
+              className={`${secondaryClass} !justify-center !px-2.5 !py-2 sm:!py-1.5`}
             >
               <SkipForward size={14} /> Skip break
             </button>
@@ -457,7 +457,7 @@ export function FocusBar({ player, onExit }: Props) {
               <button
                 type="button"
                 onClick={addFiveMinutes}
-                className={`${secondaryClass} !px-2.5 !py-1.5`}
+                className={`${secondaryClass} !justify-center !px-2.5 !py-2 sm:!py-1.5`}
               >
                 <Plus size={14} /> 5 min
               </button>
@@ -468,7 +468,7 @@ export function FocusBar({ player, onExit }: Props) {
                   changeFocusLength(Number(event.target.value))
                 }
                 aria-label="Focus round length"
-                className="rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-200"
+                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-200 sm:w-auto sm:py-1.5"
               >
                 {PRESETS.map((value) => (
                   <option key={value} value={value}>
@@ -481,7 +481,7 @@ export function FocusBar({ player, onExit }: Props) {
           <button
             type="button"
             onClick={exit}
-            className={`${secondaryClass} !px-3 !py-1.5`}
+            className={`${secondaryClass} !justify-center !px-3 !py-2 sm:!py-1.5`}
           >
             <X size={14} /> Exit focus
           </button>
@@ -497,10 +497,10 @@ export function FocusBar({ player, onExit }: Props) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2.5 sm:py-2">
             <Target size={15} className="shrink-0 text-zinc-500" />
-            <span className="shrink-0 text-xs font-medium text-zinc-500">Session goal</span>
+            <span className="hidden shrink-0 text-xs font-medium text-zinc-500 sm:inline">Session goal</span>
             <input
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
@@ -511,7 +511,7 @@ export function FocusBar({ player, onExit }: Props) {
             />
           </label>
 
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
+          <div className="flex items-center justify-between gap-2 text-xs text-zinc-400 sm:justify-normal">
             <span className="rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2">
               Today <strong className="ml-1 font-semibold text-zinc-200">{formatMinutes(todaySeconds)}</strong>
             </span>

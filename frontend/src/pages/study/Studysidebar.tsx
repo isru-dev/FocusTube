@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, FilePlus2, FileText, Plus, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FilePlus2,
+  FileText,
+  PanelLeftClose,
+  Plus,
+  Search,
+} from "lucide-react";
 
 import {
   inputClass,
@@ -13,6 +21,7 @@ interface Props {
   activeNoteId: string;
   currentVideo: VideoRef | null;
   creating: boolean;
+  onCollapse: () => void;
   onSelect: (note: StudyNote) => void;
   onCreate: (video: VideoRef | null) => void;
 }
@@ -30,6 +39,7 @@ export function StudySidebar({
   activeNoteId,
   currentVideo,
   creating,
+  onCollapse,
   onSelect,
   onCreate,
 }: Props) {
@@ -87,6 +97,18 @@ export function StudySidebar({
 
   return (
     <aside className="min-w-0 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h2 className="text-sm font-semibold text-zinc-200">Note history</h2>
+        <button
+          type="button"
+          onClick={onCollapse}
+          title="Hide note history"
+          className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-sky-300"
+        >
+          <PanelLeftClose size={16} />
+        </button>
+      </div>
+
       {/* Creates the page for the video you are watching, so the video stays
           on screen and the page lands in the right group. */}
       <button
