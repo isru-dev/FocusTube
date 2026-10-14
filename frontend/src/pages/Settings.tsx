@@ -113,14 +113,7 @@ export function Settings() {
                   </p>
                 </div>
 
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wider text-stone-500 dark:text-stone-400">
-                    User ID
-                  </p>
-                  <p className="mt-1 break-all text-sm text-stone-600 dark:text-stone-300">
-                    {user.id}
-                  </p>
-                </div>
+              
               </div>
             ) : (
               <p className="text-sm text-red-600 dark:text-red-400">
