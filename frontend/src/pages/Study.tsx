@@ -53,6 +53,7 @@ export function Study() {
   const [focus, setFocus] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [videoPinned, setVideoPinned] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const videoAnchorRef = useRef<HTMLDivElement>(null);
 
   // Pick a starting note once notes have loaded (and again if the URL
@@ -111,6 +112,30 @@ export function Study() {
 
   // On phones, pin the player as soon as its card reaches the top edge.
   // Desktop keeps the side-by-side layout.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    function updateKeyboardState() {
+      const currentViewport = window.visualViewport;
+      setKeyboardOpen(
+        Boolean(
+          currentViewport &&
+            window.innerHeight - currentViewport.height > 150,
+        ),
+      );
+    }
+
+    viewport.addEventListener("resize", updateKeyboardState);
+    viewport.addEventListener("scroll", updateKeyboardState);
+    updateKeyboardState();
+
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardState);
+      viewport.removeEventListener("scroll", updateKeyboardState);
+    };
+  }, []);
+
   useEffect(() => {
     function updatePinnedVideo() {
       if (
@@ -308,7 +333,9 @@ export function Study() {
                     ref={videoAnchorRef}
                     className={
                       videoPinned
-                        ? "min-h-[calc(56.25vw+6rem)]"
+                        ? keyboardOpen
+                          ? "min-h-[56.25vw]"
+                          : "min-h-[calc(56.25vw+6rem)]"
                         : undefined
                     }
                   >
@@ -363,7 +390,7 @@ export function Study() {
                       </div>
                     )}
 
-                    {playerVideoId && (
+                    {playerVideoId && !(videoPinned && keyboardOpen) && (
                       <PlayerControls player={player} resumedFrom={startAt} />
                     )}
 
