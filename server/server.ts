@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import channelurl from "./src/routes/channelurl.ts";
+import admin from './src/routes/admin.ts';
+
 dotenv.config();
 
 const app = express();
@@ -44,7 +46,7 @@ app.get("/", (_req, res) => {
 
 // YouTube API routes
 app.use("/youtube/url", channelurl);
-
+app.use('/admin', admin);
 // Start server
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`FocusTube API listening on port ${PORT}`);

@@ -11,6 +11,7 @@ import { Home } from "./pages/Home.tsx";
 import { Saved } from "./pages/Saved.tsx";
 import { Settings } from "./pages/Settings.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Admin } from "./pages/Admin.tsx";
 function App() {
   return (
     <BrowserRouter>
@@ -59,6 +60,10 @@ function App() {
           }
         />
         <Route path="/" element={<Home />} />
+        <Route path="/admin" element={
+          <ProtectedRoute>
+             <Admin />
+          </ProtectedRoute>} />
       </Routes>
 
       <Toaster />
