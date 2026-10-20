@@ -14,6 +14,7 @@ interface Video {
   thumbnail_url: string;
 }
 
+
 interface Channel {
   id: string;
   name: string;

@@ -53,7 +53,7 @@ export function Study() {
   const [focus, setFocus] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [videoPinned, setVideoPinned] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLElement>(null);
 
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
@@ -109,20 +109,20 @@ export function Study() {
     setPlayerError("");
   }, [activeNoteId, loading, playerVideoId]);
 
-  // On phones, keep the same player visible as a compact floating video once
-  // the learner reaches the editor. Desktop has the side-by-side layout.
+  // On phones, pin the player as soon as its card reaches the top edge.
+  // Desktop keeps the side-by-side layout.
   useEffect(() => {
     function updatePinnedVideo() {
       if (
         window.innerWidth >= 1024 ||
-        !editorRef.current ||
+        !videoRef.current ||
         !playerVideoId
       ) {
         setVideoPinned(false);
         return;
       }
 
-      setVideoPinned(editorRef.current.getBoundingClientRect().top < 24);
+      setVideoPinned(videoRef.current.getBoundingClientRect().top <= 8);
     }
 
     window.addEventListener("scroll", updatePinnedVideo, { passive: true });
@@ -304,10 +304,18 @@ export function Study() {
                     focus ? "lg:top-24" : "lg:top-5"
                   }`}
                 >
-                  <section
-                    className={`overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-shadow ${
+                  <div
+                    className={
                       videoPinned
-                        ? "fixed right-3 top-3 z-30 w-[46vw] max-w-56 shadow-2xl shadow-black/60"
+                        ? "min-h-[calc(56.25vw+6rem)]"
+                        : undefined
+                    }
+                  >
+                  <section
+                    ref={videoRef}
+                    className={`overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-[width,box-shadow] duration-300 ease-out ${
+                      videoPinned
+                        ? "fixed left-3 right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-30 w-auto shadow-2xl shadow-black/60"
                         : ""
                     }`}
                   >
@@ -355,7 +363,7 @@ export function Study() {
                       </div>
                     )}
 
-                    {playerVideoId && !videoPinned && (
+                    {playerVideoId && (
                       <PlayerControls player={player} resumedFrom={startAt} />
                     )}
 
@@ -373,6 +381,7 @@ export function Study() {
                       </div>
                     )}
                   </section>
+                  </div>
 
                   {activeNote && playerVideoId && (
                     <KeyMoments
@@ -386,8 +395,7 @@ export function Study() {
 
                 {/* Editor column */}
                 <div
-                  ref={editorRef}
-                  className={`min-w-0 ${videoPinned ? "pt-24" : ""}`}
+                  className="min-w-0"
                 >
                   {activeNote ? (
                     <NoteEditor

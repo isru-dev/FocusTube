@@ -1,4 +1,3 @@
-
 import { Header } from "../components/Header";
 import { Link } from "react-router-dom";
 
@@ -22,9 +21,10 @@ export function Home() {
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-stone-600 dark:text-stone-300">
-            FocusTube lets you follow the channels you choose and watch
-            their videos without recommendations, endless feeds, or
-            algorithmic distractions.
+            FocusTube lets you follow only the channels you choose, with no
+            recommendations, no autoplay rabbit holes and no endless feed.
+            Then it helps you learn from what you watch, with a study
+            workspace that puts your notes right beside the video.
           </p>
 
           <div className="mt-10">
@@ -99,8 +99,8 @@ export function Home() {
 
             <Step
               number="02"
-              title="Watch"
-              description="See videos from those channels without algorithmic recommendations."
+              title="Watch and study"
+              description="See videos from those channels with no recommendations, and take notes right beside the video."
             />
 
             <Step
@@ -108,6 +108,47 @@ export function Home() {
               title="Leave"
               description="When you're done, you're done. FocusTube doesn't keep pulling you back."
             />
+          </div>
+        </section>
+
+        {/* Study workspace */}
+        <section className="border-y border-stone-200 bg-stone-200/30 dark:border-stone-800 dark:bg-stone-900/50">
+          <div className="mx-auto max-w-5xl px-6 py-24">
+            <div className="max-w-2xl">
+              <p className="text-sm font-medium uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Study workspace
+              </p>
+
+              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100 sm:text-4xl">
+                Turn watching into learning.
+              </h2>
+
+              <p className="mt-5 text-lg leading-8 text-stone-600 dark:text-stone-300">
+                Open any video in the study workspace. The video sits beside a
+                rich note editor, so you can write while you watch and keep
+                what matters.
+              </p>
+            </div>
+
+            <div className="mt-16 grid gap-6 sm:grid-cols-3">
+              <Feature
+                number="01"
+                title="Notes beside the video"
+                description="Write in a rich editor next to the player. Your notes are saved to your account."
+              />
+
+              <Feature
+                number="02"
+                title="Timestamps that jump back"
+                description="Mark key moments. Click a timestamp and the video jumps to that exact point."
+              />
+
+              <Feature
+                number="03"
+                title="Pick up where you left off"
+                description="FocusTube remembers where you stopped, so you can come back and continue."
+              />
+            </div>
           </div>
         </section>
 
@@ -119,8 +160,8 @@ export function Home() {
             </h2>
 
             <p className="mx-auto mt-5 max-w-xl text-lg text-stone-600 dark:text-stone-300">
-              Follow the channels you trust. Watch what they publish.
-              Nothing more.
+              Follow the channels you trust. Watch what they publish. Learn
+              from it.
             </p>
 
             <Link
@@ -187,4 +228,3 @@ function Step({
     </div>
   );
 }
-

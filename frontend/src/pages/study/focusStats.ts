@@ -1,3 +1,4 @@
+
 // Focus time per day, kept in this browser only.
 const prefix = "focustube:focus-seconds:";
 
