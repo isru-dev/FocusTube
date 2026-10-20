@@ -15,12 +15,13 @@ type Stats = {
 export function Admin() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
-
+    
+   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
   useEffect(() => {
     async function load() {
       try {
         // adjust to how you call authFetch elsewhere (full URL or path)
-        const res = await authFetch(`${import.meta.env.VITE_API_URL}/admin/stats`);
+        const res = await authFetch(`${API_URL}/admin/stats`);
         if (res.status === 403) return setError("Not authorized");
         if (!res.ok) return setError("Could not load stats");
         setStats(await res.json());
