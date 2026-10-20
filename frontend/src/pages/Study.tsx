@@ -53,7 +53,7 @@ export function Study() {
   const [focus, setFocus] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [videoPinned, setVideoPinned] = useState(false);
-  const videoRef = useRef<HTMLElement>(null);
+  const videoAnchorRef = useRef<HTMLDivElement>(null);
 
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
@@ -115,14 +115,14 @@ export function Study() {
     function updatePinnedVideo() {
       if (
         window.innerWidth >= 1024 ||
-        !videoRef.current ||
+        !videoAnchorRef.current ||
         !playerVideoId
       ) {
         setVideoPinned(false);
         return;
       }
 
-      setVideoPinned(videoRef.current.getBoundingClientRect().top <= 8);
+      setVideoPinned(videoAnchorRef.current.getBoundingClientRect().top <= 8);
     }
 
     window.addEventListener("scroll", updatePinnedVideo, { passive: true });
@@ -305,6 +305,7 @@ export function Study() {
                   }`}
                 >
                   <div
+                    ref={videoAnchorRef}
                     className={
                       videoPinned
                         ? "min-h-[calc(56.25vw+6rem)]"
@@ -312,7 +313,6 @@ export function Study() {
                     }
                   >
                   <section
-                    ref={videoRef}
                     className={`overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 transition-[width,box-shadow] duration-300 ease-out ${
                       videoPinned
                         ? "fixed left-3 right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-30 w-auto shadow-2xl shadow-black/60"
