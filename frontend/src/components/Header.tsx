@@ -32,7 +32,7 @@ export function Header() {
           </Link>
 
           {/* Theme toggle */}
-          <div className="ml-1 border-l border-stone-200 pl-3 dark:border-stone-700">
+          <div className="ml-1 border-l border-stone-200 pl-3 ">
             <ThemeToggle />
           </div>
         </nav>

@@ -1,5 +1,3 @@
-
-
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -49,17 +47,15 @@ export function SideBar() {
       </nav>
 
       {/* Theme toggle */}
-      
 
-<div className="flex items-center justify-between border-t border-stone-200 p-4 dark:border-stone-800">
-  <p className="px-1 text-xs font-medium text-stone-500 dark:text-stone-400">
-    APPEARANCE
-  </p>
-<div>
-  <ThemeToggle />
-  </div>
-</div>
-
+      <div className="flex items-center justify-between border-t border-stone-200 p-4 dark:border-stone-800">
+        <p className="px-1 text-xs font-medium text-stone-500 dark:text-stone-400">
+          APPEARANCE
+        </p>
+        <div>
+          <ThemeToggle />
+        </div>
+      </div>
     </aside>
   );
 }
