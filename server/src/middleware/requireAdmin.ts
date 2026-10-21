@@ -13,6 +13,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
-
+   console.log('request user:', JSON.stringify(req.userId), 'admin:', JSON.stringify(process.env.ADMIN_USER_ID));
+   console.log('request user:', req.userId);
   next();
 }

@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from 'express';
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { supabaseAdmin } from "../lib/supabaseAdmin.ts";
-
+import { logYoutubeCall, QUOTA_COST } from '../lib/youtubeQuota.ts';
 const router = Router();
 
 
@@ -59,6 +59,8 @@ router.get('/search', requireAuth, async (req: Request, res: Response) => {
         query.trim()
       )}&key=${process.env.YOUTUBE_API_KEY}`
     );
+    
+logYoutubeCall('search.channels', QUOTA_COST.search);   
     const searchData = await searchResponse.json();
 
     if (!searchResponse.ok) {
@@ -105,7 +107,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const channelResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/channels?${params.toString()}`
     );
-
+     logYoutubeCall('channels.list', QUOTA_COST.list);   // add
     const channelData = await channelResponse.json();
 
     if (!channelResponse.ok) {
@@ -172,7 +174,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const videosResponse = await fetch(
       `https://www.googleapis.com/youtube/v3/playlistItems?${videosParams.toString()}`
     );
-
+logYoutubeCall('playlistItems.list', QUOTA_COST.list);   // add
     const videosData = await videosResponse.json();
 
     if (!videosResponse.ok) {
@@ -307,7 +309,7 @@ router.get(
       const channelResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/channels?${channelParams}`
       );
-
+      logYoutubeCall('channels.list', QUOTA_COST.list);   // add
       const channelData = await channelResponse.json();
 
       if (!channelResponse.ok) {
@@ -339,7 +341,7 @@ router.get(
         const firstPageResponse = await fetch(
           `https://www.googleapis.com/youtube/v3/playlistItems?${firstPageParams}`
         );
-
+   logYoutubeCall('playlistItems.list', QUOTA_COST.list);   // add
         const firstPageData = await firstPageResponse.json();
 
         if (!firstPageResponse.ok) {
@@ -372,7 +374,7 @@ router.get(
       const videosResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/playlistItems?${videosParams}`
       );
-
+   logYoutubeCall('playlistItems.list', QUOTA_COST.list);   // add
       const videosData = await videosResponse.json();
 
       if (!videosResponse.ok) {
@@ -497,7 +499,7 @@ if (pageToken) {
       const youtubeResponse = await fetch(
         `https://www.googleapis.com/youtube/v3/search?${params.toString()}`
       );
-
+     logYoutubeCall('search.videos', QUOTA_COST.search);   // add
       const youtubeData = await youtubeResponse.json();
 
       if (!youtubeResponse.ok) {
