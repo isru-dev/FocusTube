@@ -17,9 +17,12 @@ export function Register() {
     setLoading(true);
 
     const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+       email,
+        password,
+        options: {
+    emailRedirectTo: `${window.location.origin}/login`,
+  },
+});
 
     if (error) {
       seterrmessage(error.message);
