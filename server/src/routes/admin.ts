@@ -1,8 +1,8 @@
-import { Router } from 'express';
-import type { User } from '@supabase/supabase-js';
-import { requireAuth } from '../middleware/requireAuth.ts';
-import { requireAdmin } from '../middleware/requireAdmin.ts';
-import { supabaseAdmin } from '../lib/supabaseAdmin.ts';
+import { Router } from "express";
+import type { User } from "@supabase/supabase-js";
+import { requireAuth } from "../middleware/requireAuth.ts";
+import { requireAdmin } from "../middleware/requireAdmin.ts";
+import { supabaseAdmin } from "../lib/supabaseAdmin.ts";
 
 const router = Router();
 router.use(requireAuth, requireAdmin); // every route in this file is admin-only
@@ -24,7 +24,7 @@ async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
 async function countRows(table: string): Promise<number> {
   const { count, error } = await supabaseAdmin
     .from(table)
-    .select('*', { count: 'exact', head: true });
+    .select("*", { count: "exact", head: true });
   if (error) throw error;
   return count ?? 0;
 }
@@ -33,7 +33,7 @@ async function countRows(table: string): Promise<number> {
 async function fetchAllRows<T>(
   table: string,
   columns: string,
-  since?: { column: string; iso: string }
+  since?: { column: string; iso: string },
 ): Promise<T[]> {
   const out: T[] = [];
   const size = 1000;
@@ -82,9 +82,9 @@ async function getQuota(now: number) {
     const since = new Date(now - 6 * DAY);
     since.setUTCHours(0, 0, 0, 0);
     const rows = await fetchAllRows<{ units: number; created_at: string }>(
-      'youtube_api_calls',
-      'units, created_at',
-      { column: 'created_at', iso: since.toISOString() }
+      "youtube_api_calls",
+      "units, created_at",
+      { column: "created_at", iso: since.toISOString() },
     );
 
     const byDay: Record<string, number> = {};
@@ -100,27 +100,35 @@ async function getQuota(now: number) {
       byDay: Object.entries(byDay).map(([date, units]) => ({ date, units })),
     };
   } catch (e) {
-    console.error('quota unavailable (is the youtube_api_calls table created?)', e);
+    console.error(
+      "quota unavailable (is the youtube_api_calls table created?)",
+      e,
+    );
     return null;
   }
 }
 
-router.get('/stats', async (req, res) => {
+router.get("/stats", async (req, res) => {
   try {
     const requested = Number(req.query.days);
     const days = RANGES.includes(requested) ? requested : 30;
 
-    const users = await step('listUsers', getAllUsers);
+    const allUsers = await step("listUsers", getAllUsers);
+    const users = allUsers.filter((u) => u.email_confirmed_at); // confirmed only
+    const unconfirmedUsers = allUsers.length - users.length;
     const now = Date.now();
 
     // Active users: signed in during the last 7 days
     const activeLast7Days = users.filter(
-      (u) => u.last_sign_in_at && now - new Date(u.last_sign_in_at).getTime() < 7 * DAY
+      (u) =>
+        u.last_sign_in_at &&
+        now - new Date(u.last_sign_in_at).getTime() < 7 * DAY,
     ).length;
 
     // Signups per day for the selected range, plus the previous period for comparison
     const signupsByDayMap: Record<string, number> = {};
-    for (let i = days - 1; i >= 0; i--) signupsByDayMap[dayKey(now - i * DAY)] = 0;
+    for (let i = days - 1; i >= 0; i--)
+      signupsByDayMap[dayKey(now - i * DAY)] = 0;
 
     const prevStart = now - 2 * days * DAY;
     const prevEnd = now - days * DAY;
@@ -135,11 +143,18 @@ router.get('/stats', async (req, res) => {
 
     // Per-user activity
     const [channelLinks, savedRows, noteRows] = await Promise.all([
-      step('read user_channels', () =>
-        fetchAllRows<{ user_id: string; channel_id: string }>('user_channels', 'user_id, channel_id')
+      step("read user_channels", () =>
+        fetchAllRows<{ user_id: string; channel_id: string }>(
+          "user_channels",
+          "user_id, channel_id",
+        ),
       ),
-      step('read saved_videos', () => fetchAllRows<{ user_id: string }>('saved_videos', 'user_id')),
-      step('read video_notes', () => fetchAllRows<{ user_id: string }>('video_notes', 'user_id')),
+      step("read saved_videos", () =>
+        fetchAllRows<{ user_id: string }>("saved_videos", "user_id"),
+      ),
+      step("read video_notes", () =>
+        fetchAllRows<{ user_id: string }>("video_notes", "user_id"),
+      ),
     ]);
 
     const channelsPerUser = tally(channelLinks.map((l) => l.user_id));
@@ -148,17 +163,26 @@ router.get('/stats', async (req, res) => {
 
     // Activation funnel
     const funnel = [
-      { label: 'Signed up', value: users.length },
-      { label: 'Added a channel', value: users.filter((u) => (channelsPerUser[u.id] ?? 0) > 0).length },
-      { label: 'Saved a video', value: users.filter((u) => (savedPerUser[u.id] ?? 0) > 0).length },
-      { label: 'Wrote a note', value: users.filter((u) => (notesPerUser[u.id] ?? 0) > 0).length },
+      { label: "Signed up", value: users.length },
+      {
+        label: "Added a channel",
+        value: users.filter((u) => (channelsPerUser[u.id] ?? 0) > 0).length,
+      },
+      {
+        label: "Saved a video",
+        value: users.filter((u) => (savedPerUser[u.id] ?? 0) > 0).length,
+      },
+      {
+        label: "Wrote a note",
+        value: users.filter((u) => (notesPerUser[u.id] ?? 0) > 0).length,
+      },
     ];
 
     // Users table (newest first, capped)
     const usersTable = users
       .map((u) => ({
         id: u.id,
-        email: u.email ?? '',
+        email: u.email ?? "",
         createdAt: u.created_at,
         lastSignInAt: u.last_sign_in_at ?? null,
         channels: channelsPerUser[u.id] ?? 0,
@@ -175,11 +199,14 @@ router.get('/stats', async (req, res) => {
       .slice(0, 5);
 
     const { data: channels, error: channelsError } = await supabaseAdmin
-      .from('channels')
-      .select('id, name')
-      .in('id', top.map(([id]) => id));
+      .from("channels")
+      .select("id, name")
+      .in(
+        "id",
+        top.map(([id]) => id),
+      );
     if (channelsError) {
-      console.error('FAILED at step: channels', channelsError);
+      console.error("FAILED at step: channels", channelsError);
       throw channelsError;
     }
 
@@ -190,7 +217,7 @@ router.get('/stats', async (req, res) => {
     }));
 
     const [videos, followLinks, savedVideos, studyPages] = await Promise.all([
-      step('count videos', () => countRows('videos')),
+      step("count videos", () => countRows("videos")),
       Promise.resolve(channelLinks.length),
       Promise.resolve(savedRows.length),
       Promise.resolve(noteRows.length),
@@ -206,7 +233,10 @@ router.get('/stats', async (req, res) => {
       videos,
       savedVideos,
       studyPages, // the page reads this key
-      signupsByDay: Object.entries(signupsByDayMap).map(([date, count]) => ({ date, count })),
+      signupsByDay: Object.entries(signupsByDayMap).map(([date, count]) => ({
+        date,
+        count,
+      })),
       signupsPrevTotal,
       funnel,
       quota,
@@ -214,8 +244,8 @@ router.get('/stats', async (req, res) => {
       topChannels,
     });
   } catch (err) {
-    console.error('admin stats error', err);
-    res.status(500).json({ error: 'Could not load stats' });
+    console.error("admin stats error", err);
+    res.status(500).json({ error: "Could not load stats" });
   }
 });
 
