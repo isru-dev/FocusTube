@@ -252,15 +252,22 @@ router.get('/my-channels', requireAuth, async (req: Request, res: Response) => {
 
   const { data: videos, error: videosError } = await supabaseAdmin
     .from('videos')
-    .select('*')
+    .select('id, title, thumbnail_url, channel_id, published_at')
     .in('channel_id', channelIds)
     .order('published_at', { ascending: false });
 
   if (videosError) return res.status(500).json({ error: videosError.message });
 
+  const videosByChannel = new Map<string, any[]>();
+  for (const video of videos ?? []) {
+    const channelVideos = videosByChannel.get(video.channel_id) ?? [];
+    channelVideos.push(video);
+    videosByChannel.set(video.channel_id, channelVideos);
+  }
+
   const channels = links.map((l: any) => ({
     ...l.channels,
-    videos: (videos || []).filter((v: any) => v.channel_id === l.channel_id),
+    videos: videosByChannel.get(l.channel_id) ?? [],
   }));
 
   res.json(channels);

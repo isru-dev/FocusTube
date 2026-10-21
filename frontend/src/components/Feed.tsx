@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { BookmarkCheck, Save } from "lucide-react";
 
 import { authFetch } from "../lib/api";
 import { supabase } from "../lib/supabaseClient";
+import { useAuth } from "../lib/AuthContext";
 import { SideBar } from "./SideBar";
 import { MobileNav } from "./MobileNav";
 
@@ -23,14 +24,20 @@ interface Channel {
 }
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const FEED_CACHE_TTL_MS = 5 * 60_000;
+const feedCache = new Map<string, { channels: Channel[]; loadedAt: number }>();
 
 export function Feed() {
+  const location = useLocation();
+  const { session } = useAuth();
+  const userId = session?.user.id;
+  const initialCache = userId ? feedCache.get(userId) : undefined;
   const [searchParams] = useSearchParams();
   const attachNoteId = (searchParams.get("attachNote") ?? "").trim();
-  const [channels, setChannels] = useState<Channel[]>([]);
+  const [channels, setChannels] = useState<Channel[]>(initialCache?.channels ?? []);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialCache);
 
   const [expandedChannels, setExpandedChannels] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,7 +80,8 @@ export function Feed() {
 
       if (error) throw error;
 
-      setSavedVideoIds((data ?? []).map((item) => item.video_id));
+      const ids = (data ?? []).map((item) => item.video_id);
+      setSavedVideoIds(ids);
     } catch (error) {
       console.error("Failed to load saved videos:", error);
     }
@@ -84,6 +92,20 @@ export function Feed() {
 
     async function loadChannels() {
       try {
+        if (!userId) {
+          if (active) setChannels([]);
+          return;
+        }
+
+        const cached = feedCache.get(userId);
+        if (cached) {
+          if (active) {
+            setChannels(cached.channels);
+            setLoading(false);
+          }
+          if (Date.now() - cached.loadedAt < FEED_CACHE_TTL_MS) return;
+        }
+
         const response = await authFetch(`${API_URL}/youtube/url/my-channels`);
 
         if (!response.ok) {
@@ -94,6 +116,10 @@ export function Feed() {
 
         if (active) {
           setChannels(data);
+          feedCache.set(userId, {
+            channels: data,
+            loadedAt: Date.now(),
+          });
         }
       } catch (error) {
         console.error("Failed to load channels:", error);
@@ -108,7 +134,11 @@ export function Feed() {
     return () => {
       active = false;
     };
-  }, [loadSavedVideos]);
+  }, [loadSavedVideos, userId]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [location.pathname]);
 
   function toggleChannel(channelId: string) {
     setExpandedChannels((current) =>
