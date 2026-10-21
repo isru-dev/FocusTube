@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from 'express';
 import { requireAuth } from "../middleware/requireAuth.ts";
 import { supabaseAdmin } from "../lib/supabaseAdmin.ts";
-import { logYoutubeCall, QUOTA_COST } from '../lib/youtubeQuota.ts';
+import { logYoutubeCall, QUOTA_COST } from '../lib/Youtubequota.ts';
 const router = Router();
 
 
