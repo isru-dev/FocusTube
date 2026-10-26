@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../lib/AuthContext";
 
 type TourContextValue = { startTour: () => void };
 
@@ -40,16 +41,37 @@ export function useProductTour() {
 
 export function ProductTourProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { session, loading } = useAuth();
   const [stepIndex, setStepIndex] = useState<number | null>(null);
   const step = stepIndex === null ? null : tourSteps[stepIndex];
+
+  function markTourSeen(userId: string) {
+    window.localStorage.setItem(`focustube-tour-seen:${userId}`, "true");
+  }
 
   function goToStep(index: number) {
     setStepIndex(index);
     navigate(tourSteps[index].path);
   }
 
+  useEffect(() => {
+    if (loading || !session?.user.id || location.pathname !== "/Feed" || stepIndex !== null) return;
+    const seenKey = `focustube-tour-seen:${session.user.id}`;
+    if (window.localStorage.getItem(seenKey)) return;
+
+    // Mark before opening so StrictMode or route changes cannot reopen it.
+    window.localStorage.setItem(seenKey, "true");
+    goToStep(0);
+  }, [goToStep, loading, location.pathname, session?.user.id, stepIndex]);
+
+  function startTour() {
+    if (session?.user.id) markTourSeen(session.user.id);
+    goToStep(0);
+  }
+
   return (
-    <TourContext.Provider value={{ startTour: () => goToStep(0) }}>
+    <TourContext.Provider value={{ startTour }}>
       {children}
       {step && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-4" role="presentation">
