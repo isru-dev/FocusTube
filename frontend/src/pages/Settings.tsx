@@ -5,10 +5,12 @@ import { MobileNav } from "../components/MobileNav";
 import { SideBar } from "../components/SideBar";
 import { supabase } from "../lib/supabaseClient";
 import { useTheme } from "../components/ThemeProvider";
+import { useProductTour } from "../components/ProductTour";
 
 export function Settings() {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
+  const { startTour } = useProductTour();
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,6 +148,18 @@ export function Settings() {
                 Switch to {theme === "dark" ? "light" : "dark"} mode
               </button>
             </div>
+          </section>
+
+          <section className="mb-6 flex flex-col gap-4 rounded-xl border border-stone-200 bg-white p-5 dark:border-stone-800 dark:bg-stone-900 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <h2 className="text-base font-semibold">Product tour</h2>
+              <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">
+                Get a quick walkthrough of your Feed, saved videos, and Study workspace.
+              </p>
+            </div>
+            <button type="button" onClick={startTour} className="rounded-lg bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-800">
+              Take a tour
+            </button>
           </section>
 
           <section className="rounded-xl border border-red-200 bg-white p-5 dark:border-red-950 dark:bg-stone-900 sm:p-6">

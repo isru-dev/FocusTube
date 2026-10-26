@@ -12,9 +12,11 @@ import { Saved } from "./pages/Saved.tsx";
 import { Settings } from "./pages/Settings.tsx";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Admin } from "./pages/Admin.tsx";
+import { ProductTourProvider } from "./components/ProductTour.tsx";
 function App() {
   return (
     <BrowserRouter>
+      <ProductTourProvider>
       <Routes>
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
@@ -67,6 +69,7 @@ function App() {
       </Routes>
 
       <Toaster />
+      </ProductTourProvider>
     </BrowserRouter>
   );
 }

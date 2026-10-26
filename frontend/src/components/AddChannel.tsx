@@ -215,7 +215,7 @@ export function AddChannel() {
 
       setUrl("");
       setUrlSuccess("Channel added successfully.");
-       //toast
+       
        toast.success(' the channel Successfully added ')
       await loadChannels();
     } catch (error) {
@@ -232,7 +232,7 @@ export function AddChannel() {
   }
 
   const inputClass =
-    "h-12 min-w-0 flex-1 rounded-xl border border-stone-300 bg-stone-50 px-4 text-sm text-stone-900 outline-none placeholder:text-stone-400 transition focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500";
+    "h-12 min-w-0 flex-1 rounded-xl border border-stone-300 bg-stone-50 px-4 text-sm text-stone-900 outline-none placeholder:text-stone-400 transition focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100 dark:placeholder:text-stone-500 ";
 
   const mutedText = "text-stone-500 dark:text-stone-400";
 

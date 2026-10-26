@@ -10,6 +10,7 @@ function extractChannelIdentifier(input: string): {
   type: "handle" | "id";
   value: string;
 } {
+
   const trimmed = input.trim();
 
   // Accept a direct channel ID, such as UCxxxxxxxx
@@ -554,3 +555,4 @@ if (pageToken) {
 
   
 export default router;
+

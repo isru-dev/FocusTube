@@ -59,6 +59,7 @@ export function Study() {
   // Pick a starting note once notes have loaded (and again if the URL
   // points at a different video): the newest page for that video, or the
   // most recently edited note when no video is in the URL.
+  
   const pickedFor = useRef<string | null>(null);
 
   useEffect(() => {

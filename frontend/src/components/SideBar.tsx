@@ -1,8 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { ThemeToggle } from "./ThemeToggle";
+import { useProductTour } from "./ProductTour";
 
 export function SideBar() {
   const location = useLocation();
+  const { startTour } = useProductTour();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -45,6 +47,14 @@ export function SideBar() {
           );
         })}
       </nav>
+
+      <button
+        type="button"
+        onClick={startTour}
+        className="mx-4 mb-4 rounded-lg border border-amber-700/30 px-4 py-2.5 text-left text-sm font-semibold text-amber-800 transition hover:bg-amber-700/10 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/10"
+      >
+        Take a tour
+      </button>
 
       {/* Theme toggle */}
 

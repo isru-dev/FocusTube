@@ -34,12 +34,15 @@ export function Feed() {
   const initialCache = userId ? feedCache.get(userId) : undefined;
   const [searchParams] = useSearchParams();
   const attachNoteId = (searchParams.get("attachNote") ?? "").trim();
+
   const [channels, setChannels] = useState<Channel[]>(initialCache?.channels ?? []);
+
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playingTitle, setPlayingTitle] = useState("");
   const [loading, setLoading] = useState(!initialCache);
 
   const [expandedChannels, setExpandedChannels] = useState<string[]>([]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Video[]>([]);
   const [searching, setSearching] = useState(false);
@@ -177,6 +180,7 @@ export function Feed() {
 
       setSearchResults(data.videos ?? data);
       setNextPageToken(data.nextPageToken ?? null);
+
     } catch (error) {
       console.error("Video search failed:", error);
       setSearchError(
@@ -243,7 +247,7 @@ export function Feed() {
     setNextPageToken(null);
   }
 
-  function handlePlayVideo(video: Video) {
+function handlePlayVideo(video: Video) {
     setPlayingId(video.id);
     setPlayingTitle(video.title);
 
@@ -514,7 +518,6 @@ export function Feed() {
                 allowFullScreen
               />
             </div>
-
             <Link
               to={`/Study?videoId=${encodeURIComponent(playingId)}&title=${encodeURIComponent(playingTitle)}${
                 attachNoteId
